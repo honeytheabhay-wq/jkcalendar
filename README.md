@@ -44,6 +44,16 @@ A small offline calendar app for Android and iPhone, built with Expo and React N
 
 ## Run on your phone
 
+Expo Go does not include every native module this app uses (`ExpoSQLite`, widgets, `@expo/ui`), so test with a development build:
+
+1. `npm install -g eas-cli`, then `eas login`.
+2. `eas build -p android --profile development`, and install the APK it links to (or `adb install <file>.apk` over USB).
+3. `npx expo start --dev-client`, then open J&K Calendar on the phone. Code changes reload live. Over USB, run `adb reverse tcp:8081 tcp:8081` first.
+
+`eas build -p android --profile preview` makes a standalone APK that runs without the Mac.
+
+The Expo Go steps below may fail with "Cannot find native module".
+
 1. Install [Node.js](https://nodejs.org/) and the **Expo Go** app on your phone.
 2. Open Terminal in this folder.
 3. Run `npm install`.

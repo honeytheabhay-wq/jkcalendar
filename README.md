@@ -50,7 +50,7 @@ A small offline calendar app for Android and iPhone, built with Expo and React N
 4. Run `npx expo start`.
 5. Scan the displayed QR code with Expo Go.
 
-The project uses Expo SDK 57. Use an Expo Go version compatible with SDK 57 for the main calendar. **Home-screen widgets require a native build and do not run in Expo Go.** This ZIP contains the native app source project; it is not an APK or an installed iPhone app.
+The project uses Expo SDK 58. Use an Expo Go version compatible with SDK 58 for the main calendar. **Home-screen widgets require a native build and do not run in Expo Go.** This ZIP contains the native app source project; it is not an APK or an installed iPhone app.
 
 To build locally with widgets, run `npx expo run:android` with Android Studio/SDK installed, or `npx expo run:ios` with Xcode installed. These commands generate the native projects from the configured plugins. Install the resulting app, open it once, then add **J&K Calendar** through the phone’s home-screen widget gallery. iOS device distribution needs the usual Apple signing setup.
 

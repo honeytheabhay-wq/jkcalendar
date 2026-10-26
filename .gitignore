@@ -8,3 +8,13 @@ Pods/
 DerivedData/
 *.keystore
 *.jks
+node_modules/
+.env
+build/
+dist/
+.expo/
+Pods/
+.gradle/
+DerivedData/
+*.keystore
+*.jks

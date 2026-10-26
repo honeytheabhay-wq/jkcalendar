@@ -1,0 +1,262 @@
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { AppText as Text } from "@/components/app-text";
+import { router } from "expo-router";
+import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
+
+import { holidays2026, type Holiday } from "@/data/holidays-2026";
+import { glassSettings, holidayDateAppearance, todayDateColors, motion, radii, type ThemeColors, type GlassLevel, useCalendarTheme } from "@/theme";
+import { HolidayDetails } from "./holiday-details";
+import { holidayYearLoaded } from "@/utils/holiday-info";
+import { useHoverDetails } from "@/utils/hover-details";
+import { occursOn } from "@/utils/event-model";
+import { useToday } from "@/utils/today";
+import { monthGrid, toDateKey } from "@/utils/dates";
+import type { CalendarEvent } from "@/utils/events";
+import { usePreferences } from "@/utils/preferences";
+import { regionalDateLabel } from "@/utils/regional-labels";
+
+const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const easeOut = cubicBezier(0.23, 1, 0.32, 1);
+
+type Props = {
+  viewMonth: Date;
+  selectedDate: Date;
+  events: CalendarEvent[];
+  width: number;
+  onSelect: (date: Date) => void;
+  detailsDate: Date | null;
+  onDeleteEvent: (id: string, title: string) => void;
+};
+
+type DayBubbleProps = {
+  date: Date;
+  cellSize: number;
+  selected: boolean;
+  today: boolean;
+  muted: boolean;
+  weekend: boolean;
+  hasEvent: boolean;
+  holidayNames: string[];
+  regionalLabel: string;
+  colors: ThemeColors;
+  glassLevel: GlassLevel;
+  onSelect: (date: Date) => void;
+  onPreview: (pinned: boolean) => void;
+  onPreviewEnd: () => void;
+};
+
+function DayBubble({
+  date,
+  cellSize,
+  selected,
+  today,
+  muted,
+  weekend,
+  hasEvent,
+  holidayNames,
+  regionalLabel,
+  colors,
+  glassLevel,
+  onSelect,
+  onPreview,
+  onPreviewEnd,
+}: DayBubbleProps) {
+  const systemReducedMotion = useReducedMotion();
+  const { reduceMotion, reduceTransparency, highContrast } = useCalendarTheme();
+  const reducedMotion = systemReducedMotion || reduceMotion;
+  const styles = createStyles(colors);
+  const glass = glassSettings[glassLevel];
+  const holidayText = (holidayNames.length ? `. Holiday: ${holidayNames.join(", ")}` : "")+(hasEvent?". Personal event":"");
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${date.toLocaleDateString(undefined, {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })}${today ? ". Today" : ""}${holidayText}${regionalLabel?`. ${regionalLabel}`:""}`}
+      accessibilityState={{ selected }}
+      accessibilityHint="Opens this day’s holiday and personal event details"
+      hitSlop={2}
+      pressRetentionOffset={10}
+      onHoverIn={() => onPreview(false)}
+      onHoverOut={onPreviewEnd}
+      onFocus={() => onPreview(false)}
+      onBlur={onPreviewEnd}
+      onPress={() => { onSelect(date); onPreview(true); }}
+    >
+      {({ pressed }) => (
+        <Animated.View
+          style={[
+            styles.dayBubble,
+            { backgroundColor: `${colors.bubble}${reduceTransparency ? "FF" : glass.alpha}`, borderColor: highContrast ? colors.ink : `${colors.surface}E6` },
+            { width: cellSize, height: cellSize, borderRadius: Math.min(14, cellSize * 0.28) },
+            weekend && styles.weekendBubble,
+            muted && styles.mutedBubble,
+            today && styles.todayBubble,
+            selected && styles.selectedBubble,
+            reduceTransparency && {backgroundColor:selected?colors.primary:today?colors.today:weekend?colors.weekend:colors.bubble},
+            holidayNames.length > 0 && styles.holidayBubble,
+            holidayNames.length > 0 && selected && { borderColor: colors.primaryDark, borderWidth: 2.5 },
+            today && styles.todayOutline,
+            today && !holidayNames.length && { backgroundColor: todayDateColors.fill },
+            {
+              opacity: pressed ? 0.84 : muted ? 0.5 : 1,
+              transform: [
+                { translateY: selected && !reducedMotion ? -3 : 0 },
+                { scale: pressed && !reducedMotion ? 0.96 : selected && !reducedMotion ? 1.025 : 1 },
+              ],
+              transitionProperty: ["transform", "opacity"],
+              transitionDuration: reducedMotion ? 0 : motion.press,
+              transitionTimingFunction: easeOut,
+            },
+          ]}
+        >
+          <View pointerEvents="none" style={[styles.gloss, { opacity: reduceTransparency ? 0 : glass.shine }]} />
+          <View pointerEvents="none" style={[styles.glassShine, { opacity: reduceTransparency ? 0 : glass.shine }]} />
+          {today ? <Animated.View pointerEvents="none" style={[styles.todayHalo, { borderRadius: Math.min(11, cellSize * 0.22) }, !reducedMotion && { animationName: { from: { opacity: 0.25 }, "50%": { opacity: 1 }, to: { opacity: 0.25 } }, animationDuration: 1200, animationIterationCount: 2, animationTimingFunction: cubicBezier(0.77, 0, 0.175, 1) }]} /> : null}
+          <Text style={[styles.dayNumber, muted && styles.mutedNumber, selected && styles.selectedNumber, holidayNames.length > 0 && styles.holidayNumber, today && !holidayNames.length && styles.todayNumber]}>
+            {date.getDate()}
+          </Text>
+          <View style={styles.markers}>
+            {hasEvent ? <View style={[styles.marker, styles.eventDot, selected && styles.selectedDot, holidayNames.length > 0 && { backgroundColor: colors.ink }, today && !holidayNames.length && { backgroundColor: todayDateColors.ink }]} /> : null}
+          </View>
+        </Animated.View>
+      )}
+    </Pressable>
+  );
+}
+
+export function CalendarGrid({ viewMonth, selectedDate, events, width, onSelect, detailsDate, onDeleteEvent }: Props) {
+  const {labelLanguage}=usePreferences();
+  const { colors, glassLevel, textScale, reduceTransparency } = useCalendarTheme();
+  const { fontScale } = useWindowDimensions();
+  const weekHeight=Math.max(36,Math.ceil(24*textScale*fontScale));
+  const styles = createStyles(colors);
+  const [popup, setPopup] = useState<{ date: Date; index: number; pinned: boolean } | null>(null);
+  const [detail, setDetail] = useState<Holiday | null>(null);
+  const [popupHeight, setPopupHeight] = useState(200);
+  const hover = useHoverDetails(() => setPopup(current => current?.pinned ? current : null));
+  useEffect(() => { hover.keepOpen(); setPopup(null); }, [viewMonth.getFullYear(), viewMonth.getMonth()]);
+  useEffect(() => {
+    if (!detailsDate) return;
+    const index=monthGrid(new Date(detailsDate.getFullYear(),detailsDate.getMonth(),1,12)).findIndex(date=>toDateKey(date)===toDateKey(detailsDate));
+    hover.keepOpen();
+    setPopup({date:detailsDate,index,pinned:true});
+  }, [detailsDate]);
+  const dates = monthGrid(viewMonth);
+  const selectedKey = toDateKey(selectedDate);
+  const todayKey = toDateKey(useToday());
+  const holidaysByDate = new Map<string, string[]>();
+  holidays2026.forEach((holiday) => {
+    holidaysByDate.set(holiday.date, [...(holidaysByDate.get(holiday.date) ?? []), holiday.name]);
+  });
+  const gap = width < 380 ? 4 : 6;
+  const cellSize = Math.floor((width - gap * 6) / 7);
+  const popupWidth = Math.min(width, 280);
+  const popupLeft = popup ? Math.max(0, Math.min(width - popupWidth, (popup.index % 7) * (cellSize + gap) + cellSize / 2 - popupWidth / 2)) : 0;
+  const popupRow = popup ? Math.floor(popup.index / 7) : 0;
+  const popupRowTop = weekHeight + 18 + popupRow * (cellSize + gap);
+  const calendarHeight=weekHeight+18+cellSize*6+gap*5;
+  const above=popupRowTop-8,below=calendarHeight-popupRowTop-cellSize-8;
+  const popupMaxHeight=Math.min(200,Math.max(above,below));
+  const popupTop = above>=below ? popupRowTop-Math.min(popupHeight,popupMaxHeight)-8 : popupRowTop+cellSize+8;
+  const popupHolidays = popup ? holidays2026.filter((holiday) => holiday.date === toDateKey(popup.date)) : [];
+  const popupKey=popup ? toDateKey(popup.date) : "";
+  const popupEvents=events.filter(event=>occursOn(event,popupKey)).sort((a,b)=>(a.time??"").localeCompare(b.time??""));
+
+  return (
+    <View style={[styles.calendar, { width }]}> 
+      <View style={[styles.weekHeader, { width, gap }]}> 
+        {weekDays.map((day, index) => (
+          <View key={`${day}-${index}`} style={[styles.weekDay, { width: cellSize, height: weekHeight, alignItems:"center", justifyContent:"center" }, index > 4 && styles.weekendLabel]}><Text style={{color:colors.onPrimary,fontSize:11,fontWeight:"800"}}>{day}</Text></View>
+        ))}
+      </View>
+      <View style={[styles.dateGrid, { width, gap }]}> 
+        <View pointerEvents="none" style={[styles.glassGlowOne, { opacity: reduceTransparency ? 0 : glassSettings[glassLevel].glow }]} />
+        <View pointerEvents="none" style={[styles.glassGlowTwo, { opacity: reduceTransparency ? 0 : glassSettings[glassLevel].glow }]} />
+        {dates.map((date, index) => {
+          const dateKey = toDateKey(date);
+          return (
+            <DayBubble
+              key={dateKey}
+              date={date}
+              cellSize={cellSize}
+              selected={dateKey === selectedKey}
+              today={dateKey === todayKey}
+              muted={date.getMonth() !== viewMonth.getMonth()}
+              weekend={date.getDay() === 0 || date.getDay() === 6}
+              hasEvent={events.some(event => occursOn(event, dateKey))}
+              holidayNames={holidaysByDate.get(dateKey) ?? []}
+              regionalLabel={regionalDateLabel(date,labelLanguage)}
+              colors={colors}
+              glassLevel={glassLevel}
+              onSelect={onSelect}
+              onPreview={(pinned) => { hover.keepOpen(); setPopup((current) => !pinned && current?.pinned ? current : { date, index, pinned }); }}
+              onPreviewEnd={hover.leave}
+            />
+          );
+        })}
+      </View>
+      {popup ? <Pressable onHoverIn={hover.keepOpen} onHoverOut={hover.leave} onFocus={hover.keepOpen} onBlur={hover.leave} onLayout={event => setPopupHeight(event.nativeEvent.layout.height)} accessibilityLiveRegion="polite" onAccessibilityEscape={() => setPopup(null)} style={[styles.popupCard, { width: popupWidth, left: popupLeft, top: popupTop, maxHeight:popupMaxHeight }]}>
+        <View style={styles.popupHeader}><View style={{flex:1,gap:3}}><Text style={styles.popupDate}>{popup.date.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage!=="english"?<Text selectable style={[styles.popupScope,{writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr",textAlign:"left"}]}>{regionalDateLabel(popup.date,labelLanguage)}</Text>:null}</View><Pressable accessibilityLabel="Close date details" onPress={() => { hover.keepOpen(); setPopup(null); }} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
+        <ScrollView style={[styles.popupScroll,{maxHeight:Math.max(45,popupMaxHeight-78)}]} contentContainerStyle={{gap:8}} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+          {popupHolidays.length ? popupHolidays.map((holiday) => <Pressable accessibilityRole="button" onPress={() => { setDetail(holiday); setPopup(null); }} key={`${holiday.date}-${holiday.name}`} style={styles.popupHoliday}><Text style={styles.popupName}>{holiday.name}</Text><Text style={styles.popupScope}>{holiday.scope} · {holiday.kind}{holiday.subjectToMoon ? " · Subject to moon sighting" : ""}</Text><Text style={styles.popupScope}>Details & source ↗</Text></Pressable>) : <Text style={styles.popupScope}>{holidayYearLoaded(popup.date.getFullYear()) ? "No holiday listed for this date." : `Holiday schedule unavailable for ${popup.date.getFullYear()}.`}</Text>}
+          {popupEvents.map(event=><View key={event.id} style={styles.popupEvent}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${event.title}`} onPress={()=>router.push({pathname:"/add-event",params:{id:event.id}})} style={styles.popupEventText}><Text style={styles.popupName}>{event.title}</Text><Text style={styles.popupScope}>{event.time||"All day"}{event.repeat&&event.repeat!=="none"?` · ${event.repeat}`:""}{event.reminderMinutes!=null?" · Reminder":""} · Edit</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${event.title}`} onPress={()=>onDeleteEvent(event.id,event.title)} style={styles.popupClose}><Text style={{color:colors.danger,fontSize:20}}>×</Text></Pressable>
+          </View>)}
+          <Pressable accessibilityRole="button" onPress={()=>router.push({pathname:"/add-event",params:{date:popupKey}})} style={styles.popupAdd}><Text style={styles.popupAddText}>＋ Add an event</Text></Pressable>
+        </ScrollView>
+      </Pressable> : null}
+      <HolidayDetails holiday={detail} onClose={() => setDetail(null)} />
+    </View>
+  );
+}
+
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    calendar: { gap: 16, position: "relative", zIndex: 5 },
+    weekHeader: { flexDirection: "row" },
+    dateGrid: { flexDirection: "row", flexWrap: "wrap", paddingTop: 2 },
+    weekDay: { height: 32, color: colors.onPrimary, fontSize: 11, lineHeight: 30, fontWeight: "800", letterSpacing: 0.45, textAlign: "center", textAlignVertical: "center", backgroundColor: colors.primary, borderColor: colors.primaryDark, borderWidth: 1, borderRadius: radii.full, overflow: "hidden" },
+    weekendLabel: { color: colors.onPrimary, backgroundColor: colors.holiday, borderColor: colors.holiday },
+    dayBubble: { overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: `${colors.bubble}99`, borderColor: `${colors.surface}E6`, borderWidth: 1.5, borderCurve: "continuous", boxShadow: `inset 0 1px 1px ${colors.surface}CC, inset 0 -1px 2px ${colors.primary}25, 0 1px 0 ${colors.primary}35, 0 8px 16px ${colors.primary}25` },
+    gloss: { position: "absolute", width: "94%", height: "42%", top: 1, left: "3%", borderRadius: 10, backgroundColor: `${colors.surface}66` },
+    glassShine: { position: "absolute", width: "23%", height: "150%", top: "-25%", left: "12%", transform: [{ rotate: "28deg" }], backgroundColor: `${colors.surface}28` },
+    glassGlowOne: { position: "absolute", width: 150, height: 150, borderRadius: 999, backgroundColor: colors.primarySoft, opacity: 0.75, top: 10, left: 30 },
+    glassGlowTwo: { position: "absolute", width: 130, height: 130, borderRadius: 999, backgroundColor: colors.weekend, opacity: 0.75, bottom: 15, right: 20 },
+    weekendBubble: { backgroundColor: `${colors.weekend}BB` },
+    mutedBubble: { backgroundColor: colors.background, borderColor: colors.line, borderWidth: 1, boxShadow: "none" },
+    todayBubble: { backgroundColor: colors.today, borderColor: colors.todayInk, borderWidth: 2, boxShadow: `0 0 0 3px ${colors.surface}, 0 0 0 5px ${colors.today}` },
+    selectedBubble: { backgroundColor: `${colors.primary}E6`, borderColor: `${colors.surface}CC`, borderWidth: 1.5, boxShadow: `inset 0 1px 2px ${colors.surface}88, 0 2px 0 ${colors.primary}66, 0 10px 18px ${colors.primary}35` },
+    dayNumber: { color: colors.ink, fontSize: 17, marginBottom: 3, fontWeight: "700", fontVariant: ["tabular-nums"] },
+    mutedNumber: { color: colors.muted },
+    todayNumber: { color: todayDateColors.ink, fontWeight: "800" },
+    todayOutline: { borderColor: todayDateColors.ring, borderWidth: 2.5, boxShadow: `inset 0 0 0 1px ${todayDateColors.ring}55, 0 0 0 2px ${todayDateColors.ring}25, 0 7px 15px ${todayDateColors.ring}22` },
+    todayHalo: { position: "absolute", inset: 2, borderColor: todayDateColors.ring, borderWidth: 1.5, opacity: 0.7 },
+    selectedNumber: { color: colors.onPrimary, fontWeight: "800" },
+    markers: { position: "absolute", bottom: 4, flexDirection: "row", gap: 3 },
+    marker: { width: 5, height: 5, borderRadius: radii.full },
+    holidayBubble: holidayDateAppearance(colors),
+    holidayNumber: { color: colors.ink },
+    eventDot: { backgroundColor: colors.primaryDark },
+    selectedDot: { backgroundColor: colors.onPrimary },
+    popupCard: { position: "absolute", zIndex: 100, elevation: 12, padding: 13, maxHeight: 200, borderRadius: 18, backgroundColor: colors.surface, borderColor: colors.primarySoft, borderWidth: 1, boxShadow: `0 12px 30px ${colors.primary}35` },
+    popupHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+    popupDate: { color: colors.ink, fontSize: 13, lineHeight: 18, fontWeight: "800" },
+    popupClose: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+    popupCloseText: { color: colors.muted, fontSize: 22 },
+    popupScroll: { maxHeight: 135, marginTop: 8 },
+    popupHoliday: { marginBottom: 8, gap: 3 },
+    popupName: { color: colors.primaryDark, fontSize: 13, lineHeight: 18, fontWeight: "700" },
+    popupScope: { color: colors.muted, fontSize: 11, lineHeight: 16 },
+    popupEvent: { flexDirection: "row", alignItems: "center", gap: 6, borderTopWidth: 1, borderTopColor: colors.line },
+    popupEventText: { flex: 1, minHeight: 44, justifyContent: "center", gap: 3 },
+    popupAdd: { minHeight: 44, justifyContent: "center", alignItems: "center", borderRadius: 14, backgroundColor: colors.primary },
+    popupAddText: { color: colors.onPrimary, fontSize: 12, fontWeight: "700" },
+  });
+}

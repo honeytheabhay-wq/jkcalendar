@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "J&K Calendar",
+    "slug": "jk-calendar",
+    "scheme": "jkcalendar",
+    "version": "1.0.0",
+    "icon": "./assets/jk-calendar-icon.png",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jkcalendar.app",
+      "infoPlist": {
+        "CADisableMinimumFrameDurationOnPhone": true
+      }
+    },
+    "android": {
+      "package": "com.jkcalendar.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-notifications",
+      ["expo-widgets", {"widgets": [{"name": "JKCalendarToday", "displayName": "J&K Calendar", "description": "Today, holidays and your next plan", "supportedFamilies": ["systemMedium"], "ios": {"supportedFamilies": ["systemMedium"]}}]}],
+      ["react-native-android-widget", {"widgets": [{"name": "JKCalendarToday", "label": "J&K Calendar", "description": "Today, holidays and your next plan", "minWidth": "250dp", "minHeight": "140dp", "targetCellWidth": 4, "targetCellHeight": 2, "resizeMode": "horizontal|vertical", "updatePeriodMillis": 1800000}]}]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

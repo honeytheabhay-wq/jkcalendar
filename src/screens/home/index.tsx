@@ -1,9 +1,10 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
 import { CalendarGrid } from "@/components/calendar-grid";
@@ -23,9 +24,10 @@ import { YearCalendar } from "./year-calendar";
 import { YearHolidayList } from "./year-holiday-list";
 
 export function Home() {
-  const { width, fontScale } = useWindowDimensions();
-  const { colors, textScale, setSeasonDateKey } = useCalendarTheme();
-  const styles = createStyles(colors);
+  const { width } = useWindowDimensions();
+  const { colors, setSeasonDateKey, reduceMotion } = useCalendarTheme();
+  const reducedMotion = useReducedMotion() || reduceMotion;
+  const styles = useMemo(() => createStyles(colors, width < 400), [colors, width < 400]);
   const [calendarView, setCalendarView] = useState<CalendarView>("monthly");
   const [coloursOpen, setColoursOpen] = useState(false);
   const [detailsDate, setDetailsDate] = useState<Date | null>(null);
@@ -36,10 +38,8 @@ export function Home() {
   const [viewMonth, setViewMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1, 12));
   const { events, deleteEvent } = useEvents();
   useEffect(()=>{setSeasonDateKey(toDateKey(seasonDateForMonth(viewMonth,today)));},[viewMonth.getFullYear(),viewMonth.getMonth(),today,setSeasonDateKey]);
+  // Screen minus page padding (2 × 16) and card padding (2 × 10). The grid always fits; it never scrolls sideways.
   const contentWidth = Math.min(Math.max(width - 52, 238), 560);
-  const minimumCell=Math.max(44,Math.ceil(30*fontScale*textScale));
-  const gridWidth=Math.max(contentWidth,minimumCell*7+6*(contentWidth<380?4:6));
-  const calendar=<CalendarGrid viewMonth={viewMonth} selectedDate={selectedDate} events={events} width={gridWidth} onSelect={selectDate} detailsDate={detailsDate} onDeleteEvent={confirmDelete} />;
   useEffect(() => { if (followToday.current) { setSelectedDate(today); setViewMonth(new Date(today.getFullYear(), today.getMonth(), 1, 12)); } }, [today]);
 
   function selectDate(date: Date) {
@@ -52,11 +52,31 @@ export function Home() {
     if (process.env.EXPO_OS === "ios") Haptics.selectionAsync();
   }
 
-  function changeMonth(offset: number) {
+  // The month slides out on the UI thread, React swaps the month, then the new month slides in from the other side.
+  const slide = useSharedValue(0);
+  const slideIn = useRef(0);
+  const slideDistance = contentWidth * 0.3;
+  const changeMonth = useCallback((offset: number) => {
     setDetailsDate(null);
     followToday.current = false;
+    slideIn.current = offset;
     setViewMonth((current) => { const nextMonth = new Date(current.getFullYear(), current.getMonth() + offset, 1, 12); return nextMonth.getFullYear() >= 1900 && nextMonth.getFullYear() <= 2100 ? nextMonth : current; });
+  }, []);
+  useEffect(() => {
+    const direction = slideIn.current;
+    slideIn.current = 0;
+    if (!direction || reducedMotion) { slide.value = 0; return; }
+    slide.value = direction * slideDistance;
+    slide.value = withTiming(0, { duration: 220 });
+  }, [viewMonth]);
+  function stepMonth(offset: number) {
+    if (reducedMotion) { changeMonth(offset); return; }
+    slide.value = withTiming(-offset * slideDistance, { duration: 110 }, finished => { if (finished) scheduleOnRN(changeMonth, offset); });
   }
+  const slideStyle = useAnimatedStyle(() => ({
+    opacity: 1 - Math.min(Math.abs(slide.value) / slideDistance, 1) * 0.7,
+    transform: [{ translateX: slide.value }],
+  }));
 
   function goToToday() {
     setDetailsDate(null);
@@ -72,9 +92,14 @@ export function Home() {
       { text: "Delete", style: "destructive", onPress: () => { void deleteEvent(id).then(warning => { if (warning) Alert.alert("Reminders", warning); }).catch(() => Alert.alert("Could not delete event", "Please try again.")); } },
     ]);
   }
-  const swipe = Gesture.Pan().activeOffsetX([-24, 24]).failOffsetY([-16, 16]).onEnd(event => {
-    if (Math.abs(event.translationX) > 50 || Math.abs(event.velocityX) > 600) scheduleOnRN(changeMonth, event.translationX < 0 ? 1 : -1);
-  });
+  const swipe = useMemo(() => Gesture.Pan().activeOffsetX([-14, 14]).failOffsetY([-14, 14])
+    .onUpdate(event => { if (!reducedMotion) slide.value = Math.max(-slideDistance, Math.min(slideDistance, event.translationX * 0.5)); })
+    .onEnd(event => {
+      const offset = event.translationX < -50 || event.velocityX < -600 ? 1 : event.translationX > 50 || event.velocityX > 600 ? -1 : 0;
+      if (!offset) { slide.value = withTiming(0, { duration: 160 }); return; }
+      if (reducedMotion) { scheduleOnRN(changeMonth, offset); return; }
+      slide.value = withTiming(-offset * slideDistance, { duration: 90 }, finished => { if (finished) scheduleOnRN(changeMonth, offset); });
+    }), [reducedMotion, slideDistance, changeMonth]);
 
   return (
     <SeasonalScreen>
@@ -94,17 +119,23 @@ export function Home() {
       {calendarView === "monthly" ? (
         <>
           <MonthHolidays viewMonth={viewMonth} onSelect={date => { selectDate(date); setDetailsDate(new Date(date)); }} />
-          <View style={styles.calendarCard}>
-            <View style={styles.monthRow}>
-              <View style={styles.monthHeading}><Pressable accessibilityLabel="Choose month and year" onPress={() => setJumpOpen(true)} style={{minHeight:44,justifyContent:"center"}}><Text style={styles.monthTitle}>{monthLabel(viewMonth)} ⌄</Text></Pressable><MonthCaption month={viewMonth} /></View>
-              <View style={styles.navigation}>
-                <Pressable accessibilityLabel="Previous month" hitSlop={6} onPress={() => changeMonth(-1)} style={({ pressed }) => [styles.roundButton, pressed && styles.buttonPressed]}><Text allowFontScaling={false} style={styles.roundButtonText}>‹</Text></Pressable>
-                <Pressable onPress={goToToday} style={({ pressed }) => [styles.todayButton, pressed && styles.buttonPressed]}><Text style={styles.todayButtonText}>Today</Text></Pressable>
-                <Pressable accessibilityLabel="Next month" hitSlop={6} onPress={() => changeMonth(1)} style={({ pressed }) => [styles.roundButton, pressed && styles.buttonPressed]}><Text allowFontScaling={false} style={styles.roundButtonText}>›</Text></Pressable>
+          <GestureDetector gesture={swipe}>
+          <View collapsable={false} style={styles.calendarCard}>
+            <View style={styles.monthHeader}>
+              <View style={styles.monthRow}>
+                <Pressable accessibilityLabel="Choose month and year" onPress={() => setJumpOpen(true)} style={styles.monthHeading}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.monthTitle}>{monthLabel(viewMonth)} ⌄</Text></Pressable>
+                <View style={styles.navigation}>
+                  <Pressable accessibilityLabel="Previous month" hitSlop={6} onPress={() => stepMonth(-1)} style={({ pressed }) => [styles.roundButton, pressed && styles.buttonPressed]}><Text allowFontScaling={false} style={styles.roundButtonText}>‹</Text></Pressable>
+                  <Pressable hitSlop={6} onPress={goToToday} style={({ pressed }) => [styles.todayButton, pressed && styles.buttonPressed]}><Text style={styles.todayButtonText}>Today</Text></Pressable>
+                  <Pressable accessibilityLabel="Next month" hitSlop={6} onPress={() => stepMonth(1)} style={({ pressed }) => [styles.roundButton, pressed && styles.buttonPressed]}><Text allowFontScaling={false} style={styles.roundButtonText}>›</Text></Pressable>
+                </View>
               </View>
+              <MonthCaption month={viewMonth} />
             </View>
 
-            {gridWidth>contentWidth ? <ScrollView horizontal style={{width:contentWidth}} showsHorizontalScrollIndicator>{calendar}</ScrollView> : <GestureDetector gesture={swipe}><View collapsable={false}>{calendar}</View></GestureDetector>}
+            <Animated.View style={slideStyle}>
+              <CalendarGrid viewMonth={viewMonth} selectedDate={selectedDate} events={events} width={contentWidth} onSelect={selectDate} detailsDate={detailsDate} onDeleteEvent={confirmDelete} />
+            </Animated.View>
 
             <View style={styles.legend}>
               <View style={styles.legendItem}><View style={styles.todaySwatch} /><Text style={styles.legendText}>Today</Text></View>
@@ -113,6 +144,7 @@ export function Home() {
               <Text style={styles.yearNote}>{holidayYearLoaded(viewMonth.getFullYear()) ? "Official list: 2026" : "Holiday schedule unavailable"}</Text>
             </View>
           </View>
+          </GestureDetector>
         </>
       ) : (
         <YearCalendar year={viewMonth.getFullYear()} width={contentWidth} selectedDate={selectedDate} onJump={() => setJumpOpen(true)} onSelect={(date) => { selectDate(date); setCalendarView("monthly"); }} />
@@ -125,7 +157,8 @@ export function Home() {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+// Narrow phones get a smaller month title and buttons, so "September 2026" fits beside ‹ Today ›.
+function createStyles(colors: ThemeColors, narrow: boolean) {
   return StyleSheet.create({
     content: { alignItems: "center", gap: 10, paddingHorizontal: spacing.md, paddingTop: 4, paddingBottom: spacing.xxl, backgroundColor: colors.background },
     decorativeBubble: { position: "absolute", borderRadius: radii.full, opacity: 0.62 },
@@ -138,13 +171,14 @@ function createStyles(colors: ThemeColors) {
     utilityBubble: { minHeight:28, paddingHorizontal:10, paddingVertical:4, justifyContent:"center", borderRadius:radii.full, backgroundColor:colors.primarySoft },
     colourText: { color: colors.primaryDark, fontSize: 11, fontWeight: "700" },
     calendarCard: { width: "100%", maxWidth: 620, alignItems: "center", gap: 20, paddingHorizontal: 10, paddingVertical: 20, backgroundColor: colors.surface, borderRadius: radii.card, borderCurve: "continuous", boxShadow: shadows.card },
-    monthRow: { width: "100%", flexDirection: "row", flexWrap:"wrap", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, paddingHorizontal: spacing.xs },
-    monthTitle: { flexShrink: 1, color: colors.ink, fontSize: 20, fontWeight: "700", letterSpacing: -0.4 },
-    monthHeading: { flexShrink: 1, minHeight: 44, justifyContent: "center" },
-    navigation: { flexDirection: "row", alignItems: "center", gap: 5 },
-    roundButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: radii.full, backgroundColor: colors.primarySoft },
+    monthHeader: { width: "100%", gap: 6, paddingHorizontal: spacing.xs },
+    monthRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    monthTitle: { color: colors.ink, fontSize: narrow ? 17 : 20, fontWeight: "700", letterSpacing: -0.4 },
+    monthHeading: { flex: 1, minHeight: 44, justifyContent: "center" },
+    navigation: { flexDirection: "row", alignItems: "center", gap: narrow ? 4 : 5 },
+    roundButton: { width: narrow ? 36 : 40, height: narrow ? 36 : 40, alignItems: "center", justifyContent: "center", borderRadius: radii.full, backgroundColor: colors.primarySoft },
     roundButtonText: { color: colors.primaryDark, fontSize: 24, lineHeight: 25 },
-    todayButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 12, borderRadius: radii.full, backgroundColor: colors.today },
+    todayButton: { minHeight: narrow ? 36 : 40, justifyContent: "center", paddingHorizontal: narrow ? 10 : 12, borderRadius: radii.full, backgroundColor: colors.today },
     todayButtonText: { color: colors.todayInk, fontSize: 12, fontWeight: "800" },
     legend: { width: "100%", flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10, paddingHorizontal: spacing.xs },
     legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },

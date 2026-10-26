@@ -1,6 +1,6 @@
 import { Host, Icon } from "@expo/ui";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppState, Image, StyleSheet, View } from "react-native";
 import Animated, { type CSSAnimationKeyframes } from "react-native-reanimated";
 import { useCalendarTheme } from "@/theme";
@@ -30,8 +30,8 @@ export function SeasonalBackground({modal=false}:{modal?:boolean}) {
   useFocusEffect(useCallback(()=>{setFocused(true);return()=>setFocused(false);},[]));
   const enabled=seasonalMotion!=="off"&&!reduceMotion&&!highContrast;
   const running=seasonMotionEnabled({enabled,reduceMotion,highContrast,active,focused,obscured:obscured&&!modal});
-  return <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onLayout={event=>setSize({width:event.nativeEvent.layout.width,height:event.nativeEvent.layout.height})} style={styles.layer}>
-    {enabled&&height>0?seasonalParticles(season.id,seasonalMotion).map((p,index)=>{
+  // Keyframes are rebuilt only when the season, size or motion level changes, not on every screen update.
+  const particles=useMemo(()=>enabled&&height>0?seasonalParticles(season.id,seasonalMotion).map((p,index)=>{
       const falling=["petal","chinar","raindrop","snow"].includes(p.kind),turning=p.kind==="petal"||p.kind==="chinar";
       const animationName:CSSAnimationKeyframes={};
       for(let step=0;step<=12;step++){
@@ -42,7 +42,9 @@ export function SeasonalBackground({modal=false}:{modal?:boolean}) {
       }
       const colour=themeName==="midnight-indigo"?p.darkColour:p.colour;
       return <Animated.View key={`${season.id}-${seasonalMotion}-${index}`} style={{position:"absolute",left:`${p.x}%`,top:falling?0:height*p.y/100,width:p.width,height:p.height,animationName,animationDuration:p.duration,animationDelay:-p.phase*p.duration,animationIterationCount:"infinite",animationTimingFunction:"linear",animationPlayState:running?"running":"paused"}}><Motif particle={p} colour={colour} /></Animated.View>;
-    }):null}
+    }):null,[enabled,width,height,season.id,seasonalMotion,themeName,running]);
+  return <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onLayout={event=>setSize({width:event.nativeEvent.layout.width,height:event.nativeEvent.layout.height})} style={styles.layer}>
+    {particles}
   </View>;
 }
 const styles=StyleSheet.create({layer:{...StyleSheet.absoluteFill,overflow:"hidden",zIndex:10000}});

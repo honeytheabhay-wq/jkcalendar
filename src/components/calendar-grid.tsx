@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
-import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
+import Animated, { cubicBezier, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 
 import { holidays2026, type Holiday } from "@/data/holidays-2026";
-import { glassSettings, holidayDateAppearance, todayDateColors, motion, radii, type ThemeColors, type GlassLevel, useCalendarTheme } from "@/theme";
+import { glassSettings, holidayDateAppearance, todayDateColors, radii, type ThemeColors, type GlassLevel, useCalendarTheme } from "@/theme";
 import { HolidayDetails } from "./holiday-details";
 import { holidayYearLoaded } from "@/utils/holiday-info";
 import { useHoverDetails } from "@/utils/hover-details";
@@ -17,7 +17,11 @@ import { usePreferences } from "@/utils/preferences";
 import { regionalDateLabel } from "@/utils/regional-labels";
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const easeOut = cubicBezier(0.23, 1, 0.32, 1);
+const noHolidays: string[] = [];
+const holidaysByDate = new Map<string, string[]>();
+holidays2026.forEach((holiday) => {
+  holidaysByDate.set(holiday.date, [...(holidaysByDate.get(holiday.date) ?? []), holiday.name]);
+});
 
 type Props = {
   viewMonth: Date;
@@ -29,8 +33,10 @@ type Props = {
   onDeleteEvent: (id: string, title: string) => void;
 };
 
+type GridStyles = ReturnType<typeof createStyles>;
 type DayBubbleProps = {
   date: Date;
+  index: number;
   cellSize: number;
   selected: boolean;
   today: boolean;
@@ -40,14 +46,20 @@ type DayBubbleProps = {
   holidayNames: string[];
   regionalLabel: string;
   colors: ThemeColors;
+  styles: GridStyles;
   glassLevel: GlassLevel;
+  reducedMotion: boolean;
+  reduceTransparency: boolean;
+  highContrast: boolean;
   onSelect: (date: Date) => void;
-  onPreview: (pinned: boolean) => void;
+  onPreview: (date: Date, index: number, pinned: boolean) => void;
   onPreviewEnd: () => void;
 };
 
-function DayBubble({
+// Memoised: a tap or month change only re-renders the bubbles whose props changed.
+const DayBubble = memo(function DayBubble({
   date,
+  index,
   cellSize,
   selected,
   today,
@@ -57,16 +69,24 @@ function DayBubble({
   holidayNames,
   regionalLabel,
   colors,
+  styles,
   glassLevel,
+  reducedMotion,
+  reduceTransparency,
+  highContrast,
   onSelect,
   onPreview,
   onPreviewEnd,
 }: DayBubbleProps) {
-  const systemReducedMotion = useReducedMotion();
-  const { reduceMotion, reduceTransparency, highContrast } = useCalendarTheme();
-  const reducedMotion = systemReducedMotion || reduceMotion;
-  const styles = createStyles(colors);
   const glass = glassSettings[glassLevel];
+  // Press and selection run on the UI thread, so the bubble responds even while React is busy.
+  const press = useSharedValue(0);
+  const lift = useSharedValue(selected ? 1 : 0);
+  useEffect(() => { lift.value = reducedMotion ? (selected ? 1 : 0) : withSpring(selected ? 1 : 0, { damping: 14, stiffness: 220 }); }, [selected, reducedMotion]);
+  const motionStyle = useAnimatedStyle(() => reducedMotion ? { opacity: muted ? 0.5 : 1 - press.value * 0.16 } : {
+    opacity: (muted ? 0.5 : 1) - press.value * 0.16,
+    transform: [{ translateY: -3 * lift.value }, { scale: 1 + 0.025 * lift.value - 0.07 * press.value }],
+  });
   const holidayText = (holidayNames.length ? `. Holiday: ${holidayNames.join(", ")}` : "")+(hasEvent?". Personal event":"");
 
   return (
@@ -82,13 +102,14 @@ function DayBubble({
       accessibilityHint="Opens this day’s holiday and personal event details"
       hitSlop={2}
       pressRetentionOffset={10}
-      onHoverIn={() => onPreview(false)}
+      onHoverIn={() => onPreview(date, index, false)}
       onHoverOut={onPreviewEnd}
-      onFocus={() => onPreview(false)}
+      onFocus={() => onPreview(date, index, false)}
       onBlur={onPreviewEnd}
-      onPress={() => { onSelect(date); onPreview(true); }}
+      onPressIn={() => { press.value = withTiming(1, { duration: 80 }); }}
+      onPressOut={() => { press.value = withSpring(0, { damping: 12, stiffness: 260 }); }}
+      onPress={() => { onSelect(date); onPreview(date, index, true); }}
     >
-      {({ pressed }) => (
         <Animated.View
           style={[
             styles.dayBubble,
@@ -103,16 +124,7 @@ function DayBubble({
             holidayNames.length > 0 && selected && { borderColor: colors.primaryDark, borderWidth: 2.5 },
             today && styles.todayOutline,
             today && !holidayNames.length && { backgroundColor: todayDateColors.fill },
-            {
-              opacity: pressed ? 0.84 : muted ? 0.5 : 1,
-              transform: [
-                { translateY: selected && !reducedMotion ? -3 : 0 },
-                { scale: pressed && !reducedMotion ? 0.96 : selected && !reducedMotion ? 1.025 : 1 },
-              ],
-              transitionProperty: ["transform", "opacity"],
-              transitionDuration: reducedMotion ? 0 : motion.press,
-              transitionTimingFunction: easeOut,
-            },
+            motionStyle,
           ]}
         >
           <View pointerEvents="none" style={[styles.gloss, { opacity: reduceTransparency ? 0 : glass.shine }]} />
@@ -125,17 +137,17 @@ function DayBubble({
             {hasEvent ? <View style={[styles.marker, styles.eventDot, selected && styles.selectedDot, holidayNames.length > 0 && { backgroundColor: colors.ink }, today && !holidayNames.length && { backgroundColor: todayDateColors.ink }]} /> : null}
           </View>
         </Animated.View>
-      )}
     </Pressable>
   );
-}
+});
 
 export function CalendarGrid({ viewMonth, selectedDate, events, width, onSelect, detailsDate, onDeleteEvent }: Props) {
   const {labelLanguage}=usePreferences();
-  const { colors, glassLevel, textScale, reduceTransparency } = useCalendarTheme();
+  const { colors, glassLevel, textScale, reduceTransparency, reduceMotion, highContrast } = useCalendarTheme();
+  const reducedMotion = useReducedMotion() || reduceMotion;
   const { fontScale } = useWindowDimensions();
   const weekHeight=Math.max(36,Math.ceil(24*textScale*fontScale));
-  const styles = createStyles(colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [popup, setPopup] = useState<{ date: Date; index: number; pinned: boolean } | null>(null);
   const [detail, setDetail] = useState<Holiday | null>(null);
   const [popupHeight, setPopupHeight] = useState(200);
@@ -147,13 +159,15 @@ export function CalendarGrid({ viewMonth, selectedDate, events, width, onSelect,
     hover.keepOpen();
     setPopup({date:detailsDate,index,pinned:true});
   }, [detailsDate]);
-  const dates = monthGrid(viewMonth);
+  const dates = useMemo(() => monthGrid(viewMonth), [viewMonth.getFullYear(), viewMonth.getMonth()]);
+  const eventDates = useMemo(() => new Set(dates.map(toDateKey).filter(key => events.some(event => occursOn(event, key)))), [dates, events]);
   const selectedKey = toDateKey(selectedDate);
   const todayKey = toDateKey(useToday());
-  const holidaysByDate = new Map<string, string[]>();
-  holidays2026.forEach((holiday) => {
-    holidaysByDate.set(holiday.date, [...(holidaysByDate.get(holiday.date) ?? []), holiday.name]);
-  });
+  // Stable handlers keep the memoised bubbles from re-rendering on every parent render.
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+  const selectDate = useCallback((date: Date) => onSelectRef.current(date), []);
+  const preview = useCallback((date: Date, index: number, pinned: boolean) => { hover.keepOpen(); setPopup((current) => !pinned && current?.pinned ? current : { date, index, pinned }); }, [hover.keepOpen]);
   const gap = width < 380 ? 4 : 6;
   const cellSize = Math.floor((width - gap * 6) / 7);
   const popupWidth = Math.min(width, 280);
@@ -184,18 +198,23 @@ export function CalendarGrid({ viewMonth, selectedDate, events, width, onSelect,
             <DayBubble
               key={dateKey}
               date={date}
+              index={index}
               cellSize={cellSize}
               selected={dateKey === selectedKey}
               today={dateKey === todayKey}
               muted={date.getMonth() !== viewMonth.getMonth()}
               weekend={date.getDay() === 0 || date.getDay() === 6}
-              hasEvent={events.some(event => occursOn(event, dateKey))}
-              holidayNames={holidaysByDate.get(dateKey) ?? []}
+              hasEvent={eventDates.has(dateKey)}
+              holidayNames={holidaysByDate.get(dateKey) ?? noHolidays}
               regionalLabel={regionalDateLabel(date,labelLanguage)}
               colors={colors}
+              styles={styles}
               glassLevel={glassLevel}
-              onSelect={onSelect}
-              onPreview={(pinned) => { hover.keepOpen(); setPopup((current) => !pinned && current?.pinned ? current : { date, index, pinned }); }}
+              reducedMotion={reducedMotion}
+              reduceTransparency={reduceTransparency}
+              highContrast={highContrast}
+              onSelect={selectDate}
+              onPreview={preview}
               onPreviewEnd={hover.leave}
             />
           );

@@ -20,13 +20,16 @@ export function MonthCaption({month}:{month:Date}) {
   const {labelLanguage}=usePreferences();
   const localMonth=regionalMonthLabel(month,labelLanguage);
   const dogri=dogriSeasonLabel(season.id);
-  return <View style={{gap:3,paddingBottom:4}}>
-    <View style={{flexDirection:"row",alignItems:"center",gap:5}}>
+  // Same rows and heights for every month, so the card never jumps: name, then Kashmiri script · Dogri, then the optional regional month.
+  return <View style={{gap:2}}>
+    <View style={{flexDirection:"row",alignItems:"center",gap:6,height:20}}>
       <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={{width:16,height:16}}><Host style={{width:16,height:16}}><Icon name={icons[season.id]} size={14} color={colors.primaryDark} /></Host></View>
-      <Text style={{color:colors.primaryDark,fontSize:12,lineHeight:17,fontWeight:"600",flexShrink:1}}>{season.name} · {season.english}</Text>
+      <Text numberOfLines={1} style={{color:colors.primaryDark,fontSize:13,lineHeight:18,fontWeight:"700",flexShrink:1}}>{season.name} · {season.english}</Text>
     </View>
-    <Text accessibilityLanguage="ks" style={{color:colors.primaryDark,fontSize:16,lineHeight:24,writingDirection:"rtl",textAlign:"left"}}>{season.script}</Text>
-    {dogri?<Text accessibilityLabel={`Dogri: ${dogri}`} style={{color:colors.muted,fontSize:12,lineHeight:18,writingDirection:"ltr"}}>{dogri}</Text>:null}
-    {localMonth?<Text style={{color:colors.muted,fontSize:12,lineHeight:18,textAlign:"left",writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr"}}>{localMonth}</Text>:null}
+    <View style={{flexDirection:"row",alignItems:"center",gap:6,height:24,paddingLeft:22}}>
+      <Text accessibilityLanguage="ks" numberOfLines={1} style={{color:colors.primaryDark,fontSize:15,lineHeight:22}}>{season.script}</Text>
+      {dogri?<Text accessibilityLabel={`Dogri: ${dogri}`} numberOfLines={1} style={{color:colors.muted,fontSize:12,lineHeight:22,flexShrink:1}}>{`·  ${dogri}`}</Text>:null}
+    </View>
+    {localMonth?<View style={{height:20,paddingLeft:22,justifyContent:"center"}}><Text numberOfLines={1} style={{color:colors.muted,fontSize:12,lineHeight:18,textAlign:"left",writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr"}}>{localMonth}</Text></View>:null}
   </View>;
 }

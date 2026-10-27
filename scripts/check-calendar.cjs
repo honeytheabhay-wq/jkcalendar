@@ -183,6 +183,7 @@ async function main() {
   const {checkOfficialOrders,getOrderStatus}=load('src/utils/official-orders.ts');
   const firstCheck=checkOfficialOrders(),secondCheck=checkOfficialOrders();assert.equal(firstCheck,secondCheck);await firstCheck;
   assert.equal(getOrderStatus().checkedCount,3);assert.equal(getOrderStatus().orders.length,2);const lastCheck=getOrderStatus().checkedAt;
+  assert.deepEqual(getOrderStatus().unseen,[],'first check records existing orders without flagging them');
   offline=true;await checkOfficialOrders();assert.equal(getOrderStatus().checkedAt,lastCheck);assert.equal(getOrderStatus().orders.length,2);assert.equal(getOrderStatus().error,'Offline');
   console.log(`Checked ${files.length} TypeScript files; calendar, quick entry, widget timelines, official-order cache/failure, reminder retry/test confirmation and all 51 holidays passed.`);
 }

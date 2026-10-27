@@ -1,4 +1,7 @@
+import { router } from "expo-router";
 import { Stack } from "expo-router/stack";
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useEffect } from "react";
@@ -14,6 +17,13 @@ function Navigation() {
   useReminderRefresh();
   const { colors, themeName } = useCalendarTheme();
   const { events }=useEvents();
+  // Tapping a "new official holiday order" alert opens Settings, where the order is listed.
+  useEffect(()=>{
+    if(Platform.OS==="web")return;
+    const open=(response:Notifications.NotificationResponse|null)=>{if(response?.notification.request.content.data?.calendarOwner==="jk-calendar-orders")router.push("/settings");};
+    const subscription=Notifications.addNotificationResponseReceivedListener(open);
+    return()=>subscription.remove();
+  },[]);
   useEffect(()=>{
     const refresh=()=>{void syncWidgets(events,colors).catch(()=>{});const status=getOrderStatus();if(getPreferences().autoCheckOrders&&Date.now()-(status.attemptedAt??0)>(status.error?900_000:86_400_000))void checkOfficialOrders();};
     refresh();const listener=AppState.addEventListener("change",state=>{if(state==="active")refresh();});return()=>listener.remove();

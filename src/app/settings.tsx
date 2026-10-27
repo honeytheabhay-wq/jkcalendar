@@ -1,6 +1,6 @@
 import { Column, Host, Picker, Switch } from "@expo/ui";
 import { Stack } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { useCalendarTheme } from "@/theme";
@@ -9,7 +9,7 @@ import { setPreference, usePreferences } from "@/utils/preferences";
 import { useReminderStatus } from "@/utils/reminder-status";
 import { requestReminderPermission, sendTestReminder, syncReminders } from "@/utils/reminders";
 import { holidayReminderHours, holidayReminderPreview, holidayReminderScopes } from "@/utils/holiday-reminders";
-import { checkOfficialOrders, useOrderStatus } from "@/utils/official-orders";
+import { checkOfficialOrders, markOrdersSeen, useOrderStatus } from "@/utils/official-orders";
 import { officialOrdersUrl } from "@/utils/official-orders-model";
 import { widgetData } from "@/utils/widget-data";
 import { syncWidgets } from "@/widgets/sync";
@@ -22,6 +22,9 @@ export default function SettingsRoute() {
   const { colors:c, themeName }=useCalendarTheme(), preferences=usePreferences(), reminders=useReminderStatus(), orders=useOrderStatus();
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
   const {events}=useEvents();
+  // Orders that were new when Settings opened stay highlighted on this visit; the home banner is cleared.
+  const [newOrders]=useState(()=>orders.unseen);
+  useEffect(()=>{markOrdersSeen();},[]);
   const snapshot=widgetData(events,new Date(),c), dark=themeName==="midnight-indigo";
   async function run(task:()=>Promise<unknown>) { if(busy)return;setBusy(true);setMessage("");try{const result=await task();if(typeof result==="string")setMessage(result);}catch(e){setMessage(e instanceof Error?e.message:"Could not finish. Please try again.");}finally{setBusy(false);} }
   const heading=(text:string)=><Text accessibilityRole="header" style={{color:c.ink,fontSize:18,fontWeight:"800"}}>{text}</Text>;
@@ -77,7 +80,7 @@ export default function SettingsRoute() {
       {orders.error?<Text accessibilityRole="alert" style={{color:c.danger,fontSize:12}}>{orders.error}</Text>:null}
       {button(orders.checking?"Checking…":"Check official orders now",checkOfficialOrders)}
       {orders.checkedAt&&!orders.checking&&!orders.orders.some(o=>!o.included)?note("No additional holiday orders found in the recent records checked. This does not cover the full archive."):null}
-      {orders.orders.map(order=><Pressable key={order.id} accessibilityRole="link" onPress={()=>void run(()=>Linking.openURL(order.url))} style={{minHeight:48,gap:4,paddingVertical:10,borderBottomWidth:1,borderColor:c.line}}><Text style={{color:c.primaryDark,fontSize:13,fontWeight:"700"}}>{order.title} ↗</Text>{note(`${order.reference} · ${order.included?"Included in calendar":"Review official order — not applied to dates"}`)}</Pressable>)}
+      {orders.orders.map(order=><Pressable key={order.id} accessibilityRole="link" onPress={()=>void run(()=>Linking.openURL(order.url))} style={{minHeight:48,gap:4,paddingVertical:10,borderBottomWidth:1,borderColor:c.line}}><Text style={{color:c.primaryDark,fontSize:13,fontWeight:"700"}}>{order.title} ↗</Text>{note(`${newOrders.includes(order.id)?"NEW · ":""}${order.reference} · ${order.included?"Included in calendar":"Review official order — not applied to dates"}`)}</Pressable>)}
       {button("Open full official archive",()=>Linking.openURL(officialOrdersUrl))}
       {note("Checks read the GAD website’s recent order listing. Newly detected orders require review; the app does not guess amended dates from document titles.")}
     </View>

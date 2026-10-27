@@ -68,6 +68,13 @@ export async function sendTestReminder() {
   updateReminderStatus({ testId: id, testAt: at, testReceivedAt: undefined });
 }
 
+// Immediate alert when the daily official-order check finds a new holiday order, e.g. a moon-sighting date change.
+export async function notifyNewHolidayOrders(titles: string[]) {
+  if (Platform.OS === "web" || !titles.length) return;
+  if (!(await Notifications.getPermissionsAsync()).granted) return;
+  await Notifications.scheduleNotificationAsync({ content: { title: titles.length === 1 ? "New official holiday order" : `${titles.length} new official holiday orders`, body: `${titles[0]}${titles.length > 1 ? " and more" : ""}. A holiday date may have changed. Tap to review.`, data: { calendarOwner: "jk-calendar-orders" } }, trigger: null });
+}
+
 export function startReminderDeliveryListener() {
   if (Platform.OS === "web") return () => {};
   const record = (notification: Notifications.Notification) => { const status=getReminderStatus();if (!status.testReceivedAt && notification.request.content.data?.calendarOwner === "jk-calendar-test" && notification.request.identifier === status.testId) updateReminderStatus({ testReceivedAt: Date.now() }); };

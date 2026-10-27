@@ -15,6 +15,7 @@ import { monthLabel, toDateKey } from "@/utils/dates";
 import { useEvents } from "@/utils/events";
 import { holidayYearLoaded } from "@/utils/holiday-info";
 import { useToday } from "@/utils/today";
+import { useOrderStatus } from "@/utils/official-orders";
 import { MonthHolidays } from "./month-holidays";
 import { MonthCaption } from "./month-caption";
 import { seasonDateForMonth } from "@/utils/seasons";
@@ -37,6 +38,7 @@ export function Home() {
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [viewMonth, setViewMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1, 12));
   const { events, deleteEvent } = useEvents();
+  const { unseen } = useOrderStatus();
   useEffect(()=>{setSeasonDateKey(toDateKey(seasonDateForMonth(viewMonth,today)));},[viewMonth.getFullYear(),viewMonth.getMonth(),today,setSeasonDateKey]);
   // Screen minus page padding (2 × 16) and card padding (2 × 10). The grid always fits; it never scrolls sideways.
   const contentWidth = Math.min(Math.max(width - 52, 238), 560);
@@ -115,6 +117,10 @@ export function Home() {
         </View>
       </View>
       {coloursOpen ? <View style={styles.themePanel}><ThemePicker /></View> : null}
+      {unseen.length ? <Pressable accessibilityRole="button" onPress={() => router.push("/settings")} style={({ pressed }) => [styles.orderBanner, pressed && styles.buttonPressed]}>
+        <Text style={styles.orderBannerTitle}>{unseen.length === 1 ? "New official holiday order" : `${unseen.length} new official holiday orders`}</Text>
+        <Text style={styles.orderBannerText}>A holiday date may have changed after moon sighting. Tap to review →</Text>
+      </Pressable> : null}
 
       {calendarView === "monthly" ? (
         <>
@@ -167,6 +173,9 @@ function createStyles(colors: ThemeColors, narrow: boolean) {
     toolbar: { width:"100%", maxWidth:620, flexDirection:"row", flexWrap:"wrap", alignItems:"center", justifyContent:"space-between", gap:4 },
     utilities: { flexDirection:"row", gap:5, marginLeft:"auto" },
     themePanel: { width:"100%", maxWidth:620 },
+    orderBanner: { width:"100%", maxWidth:620, gap:3, padding:14, borderRadius:18, backgroundColor:colors.holiday },
+    orderBannerTitle: { color:colors.onPrimary, fontSize:14, fontWeight:"800" },
+    orderBannerText: { color:colors.onPrimary, fontSize:12, fontWeight:"600" },
     colourButton: { minHeight:44, justifyContent:"center", paddingVertical:7 },
     utilityBubble: { minHeight:28, paddingHorizontal:10, paddingVertical:4, justifyContent:"center", borderRadius:radii.full, backgroundColor:colors.primarySoft },
     colourText: { color: colors.primaryDark, fontSize: 11, fontWeight: "700" },

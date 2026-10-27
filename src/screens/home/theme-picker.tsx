@@ -1,19 +1,24 @@
 import * as Haptics from "expo-haptics";
 import { Host, Switch } from "@expo/ui";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Alert, Pressable, StyleSheet, useColorScheme, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 
 import { radii, spacing, themes, type ThemeColors, type ManualThemeName, useCalendarTheme, useSeason } from "@/theme";
 import { setPreference, usePreferences } from "@/utils/preferences";
 
 export function ThemePicker() {
-  const { themeName, colors, setThemeName, glassLevel, setGlassLevel } = useCalendarTheme(), { season } = useSeason();
+  const { themeName, colors, setThemeName } = useCalendarTheme(), { season } = useSeason();
   const preferences=usePreferences();
+  // Dark appearance always shows Midnight Indigo, so choosing any other colour switches the app to Light.
+  const systemScheme=useColorScheme();
+  const darkAppearance=preferences.appearance==="dark"||(preferences.appearance==="system"&&systemScheme==="dark");
+  function showColours() { if (darkAppearance) setPreference("appearance","light"); }
   const styles = createStyles(colors);
 
   function chooseTheme(name: ManualThemeName) {
     try {
       setThemeName(name);
+      if (name !== "midnight-indigo") showColours();
       if (process.env.EXPO_OS === "ios") Haptics.selectionAsync();
     } catch { Alert.alert("Could not save colour", "Please try again."); }
   }
@@ -21,11 +26,11 @@ export function ThemePicker() {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>COLOUR THEME</Text>
-      <Host matchContents colorScheme={themeName==="midnight-indigo"?"dark":"light"} seedColor={colors.primary}><Switch label="Automatic seasonal colours" value={preferences.autoSeasonColours} onValueChange={value=>{try{setPreference("autoSeasonColours",value);}catch{Alert.alert("Could not save colour", "Please try again.");}}} /></Host>
-      <Text style={{color:colors.muted,fontSize:12,lineHeight:17}}>{preferences.autoSeasonColours?`${season.name} · ${season.colour}`:"Manual colour choice"}</Text>
+      <Host matchContents colorScheme={themeName==="midnight-indigo"?"dark":"light"} seedColor={colors.primary}><Switch label="Automatic seasonal colours" value={preferences.autoSeasonColours} onValueChange={value=>{try{setPreference("autoSeasonColours",value);if(value)showColours();}catch{Alert.alert("Could not save colour", "Please try again.");}}} /></Host>
+      <Text style={{color:colors.muted,fontSize:12,lineHeight:17}}>{darkAppearance?"Dark mode uses Midnight Indigo. Choosing another colour switches to Light.":preferences.autoSeasonColours?`${season.name} · ${season.colour}`:"Manual colour choice"}</Text>
       <View style={styles.options}>
         {(Object.entries(themes) as [ManualThemeName, (typeof themes)[ManualThemeName]][]).map(([name, theme]) => {
-          const selected = !preferences.autoSeasonColours && name === themeName;
+          const selected = darkAppearance ? name === "midnight-indigo" : !preferences.autoSeasonColours && name === themeName;
           return (
             <Pressable
               key={name}
@@ -44,8 +49,6 @@ export function ThemePicker() {
           );
         })}
       </View>
-      <Text style={styles.label}>GLASS INTENSITY</Text>
-      <View style={styles.glassOptions}>{(["subtle", "standard", "strong"] as const).map(level => <Pressable key={level} accessibilityState={{ selected: glassLevel === level }} onPress={() => setGlassLevel(level)} style={[styles.glassOption, glassLevel === level && styles.optionSelected]}><Text style={styles.optionTextSelected}>{level[0].toUpperCase() + level.slice(1)}</Text></Pressable>)}</View>
     </View>
   );
 }
@@ -55,8 +58,6 @@ function createStyles(colors: ThemeColors) {
     container: { gap: spacing.sm },
     label: { color: colors.muted, fontSize: 10, fontWeight: "800", letterSpacing: 1.4 },
     options: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-    glassOptions: { flexDirection: "row", gap: spacing.sm },
-    glassOption: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: radii.full, borderColor: colors.line, borderWidth: 1, backgroundColor: colors.surface },
     option: { width: "47%", minHeight: 62, justifyContent: "center", gap: 6, paddingHorizontal: 9, paddingVertical: 8, backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, borderRadius: radii.lg, borderCurve: "continuous" },
     optionSelected: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primarySoft },
     swatches: { flexDirection: "row", alignItems: "center" },

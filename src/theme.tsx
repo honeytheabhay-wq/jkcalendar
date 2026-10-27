@@ -140,9 +140,6 @@ function readTheme(): ManualThemeName {
 }
 
 let themeCache = readTheme();
-const glassStorageKey = "jk-calendar-glass-v1";
-function readGlass(): GlassLevel { const value = localStorage.getItem(glassStorageKey); return value === "subtle" || value === "strong" ? value : "standard"; }
-let glassCache = readGlass();
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
@@ -157,14 +154,12 @@ function setTheme(themeName: ManualThemeName) {
   setPreference("autoSeasonColours",false);
   listeners.forEach((listener) => listener());
 }
-function setGlassLevel(level: GlassLevel) { localStorage.setItem(glassStorageKey, level); glassCache = level; listeners.forEach(listener => listener()); }
 
 type ThemeContextValue = {
   themeName: ThemeName;
   colors: ThemeColors;
   setThemeName: (themeName: ManualThemeName) => void;
   glassLevel: GlassLevel;
-  setGlassLevel: (level: GlassLevel) => void;
   textScale: number;
   reduceMotion: boolean;
   reduceTransparency: boolean;
@@ -179,7 +174,6 @@ const SeasonContext = createContext<SeasonContextValue | null>(null);
 
 export function CalendarThemeProvider({ children }: PropsWithChildren) {
   const manualThemeName = useSyncExternalStore(subscribe, () => themeCache, () => themeCache);
-  const glassLevel = useSyncExternalStore(subscribe, () => glassCache, () => glassCache);
   const preferences = usePreferences(), system = useSystemAccessibility();
   const [seasonDateKey,setSeasonDateKey] = useState(()=>toDateKey(new Date()));
   const season = seasonOn(fromDateKey(seasonDateKey));
@@ -195,9 +189,10 @@ export function CalendarThemeProvider({ children }: PropsWithChildren) {
     () => {
       const base = themeName in seasonalThemes ? seasonalThemes[themeName as SeasonId].colors : themes[themeName as ManualThemeName].colors;
       const contrast = themeName === "midnight-indigo" ? { ink: "#FFFFFF", muted: "#DBE7FA", line: "#B5CBE5", primary: "#BEDDFF", primaryDark: "#DAEBFF", onPrimary: "#0B1525", holiday: "#FFD9A0" } : { ink: "#102D40", muted: "#344F60", line: "#415E70", primary: "#174C66", primaryDark: "#123D53", onPrimary: "#FFFFFF", holiday: "#843A14" };
-      return { themeName, colors: highContrast ? { ...base, ...contrast } : base, setThemeName: setTheme, glassLevel: reduceTransparency ? "subtle" as const : glassLevel, setGlassLevel, textScale, reduceMotion, reduceTransparency, highContrast };
+      return { themeName, colors: highContrast ? { ...base, ...contrast } : base, setThemeName: setTheme, // Glass is always strong; reduce transparency still swaps it for the solid, subtle look.
+      glassLevel: reduceTransparency ? "subtle" as const : "strong" as const, textScale, reduceMotion, reduceTransparency, highContrast };
     },
-    [themeName, glassLevel, textScale, reduceMotion, reduceTransparency, highContrast],
+    [themeName, textScale, reduceMotion, reduceTransparency, highContrast],
   );
   const seasonValue = useMemo(() => ({ season, setSeasonDateKey }), [season]);
   return <SeasonContext value={seasonValue}><ThemeContext value={value}>{children}</ThemeContext></SeasonContext>;

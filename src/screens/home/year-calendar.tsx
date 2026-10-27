@@ -1,11 +1,13 @@
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 
 import { holidays2026, type Holiday } from "@/data/holidays-2026";
 import { HolidayDetails } from "@/components/holiday-details";
-import { useHoverDetails } from "@/utils/hover-details";
-import { monthGrid, toDateKey } from "@/utils/dates";
+import { toDateKey } from "@/utils/dates";
 import { glassSettings, holidayDateAppearance, todayDateColors, radii, shadows, spacing, type ThemeColors, useCalendarTheme } from "@/theme";
 import { useToday } from "@/utils/today";
 import { usePreferences } from "@/utils/preferences";
@@ -14,91 +16,172 @@ import { holidayYearLoaded } from "@/utils/holiday-info";
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const holidayDates = new Set(holidays2026.map((holiday) => holiday.date));
+const maxZoom = 3;
 
-export function YearCalendar({ year, width, selectedDate, onSelect, onJump }: { year: number; width: number; selectedDate: Date; onSelect: (date: Date) => void; onJump: () => void }) {
+type Styles = ReturnType<typeof createStyles>;
+type MonthProps = {
+  year: number;
+  monthIndex: number;
+  monthWidth: number;
+  // Only the month that holds the selected date or today gets the key, so other months skip re-rendering.
+  selectedKey: string;
+  todayKey: string;
+  bubbleColour: string;
+  styles: Styles;
+  onSelect: (date: Date) => void;
+  onPreview: (date: Date) => void;
+};
+const monthPadding = 6, monthBorder = 1.5, rowHeight = 20;
+
+// Each date is a single Text (it draws its own bubble) and one Pressable per month works out the tapped date from the
+// touch position. A Pressable, bubble View and Text per date came to ~1,250 views for the year, a ~1.5 s freeze.
+const MiniMonth = memo(function MiniMonth({ year, monthIndex, monthWidth, selectedKey, todayKey, bubbleColour, styles, onSelect, onPreview }: MonthProps) {
+  const first = new Date(year, monthIndex, 1, 12);
+  const lead = (first.getDay() + 6) % 7, days = new Date(year, monthIndex + 1, 0).getDate();
+  const cell = (monthWidth - monthPadding * 2 - monthBorder * 2) / 7 - 0.01;
+  const bubble = Math.min(18, cell - 2), side = (cell - bubble) / 2, vertical = (rowHeight - bubble) / 2;
+  const dateAt = (x: number, y: number) => {
+    const day = Math.floor(y / rowHeight) * 7 + Math.floor(x / cell) - lead + 1;
+    return day >= 1 && day <= days ? new Date(year, monthIndex, day, 12) : null;
+  };
+  const keyPrefix = `${year}-${String(monthIndex + 1).padStart(2, "0")}-`;
+  return (
+    <View style={[styles.monthCard, { width: monthWidth }]}>
+      <Pressable accessibilityRole="button" style={{ minHeight: 40, justifyContent: "center" }} accessibilityLabel={`Open ${months[monthIndex]} ${year}`} onPress={() => onSelect(first)}><Text style={styles.monthName}>{months[monthIndex]} ↗</Text></Pressable>
+      <View style={styles.miniGrid}>
+        {weekDays.map((day, index) => <Text allowFontScaling={false} key={`${day}-${index}`} style={[styles.weekDay, { width: cell }]}>{bubble < 14 ? day[0] : day.slice(0, 2)}</Text>)}
+      </View>
+      <Pressable accessible={false} onPress={event => { const date = dateAt(event.nativeEvent.locationX, event.nativeEvent.locationY); onSelect(date ?? first); }} onLongPress={event => { const date = dateAt(event.nativeEvent.locationX, event.nativeEvent.locationY); if (date) onPreview(date); }}>
+        <View pointerEvents="none" style={styles.miniGrid}>
+          {Array.from({ length: days }, (_, index) => {
+            const day = index + 1, dateKey = `${keyPrefix}${String(day).padStart(2, "0")}`;
+            const selected = dateKey === selectedKey, holiday = holidayDates.has(dateKey), today = dateKey === todayKey;
+            return (
+              <Text
+                key={day}
+                allowFontScaling={false}
+                style={[styles.dayText, { width: bubble, height: bubble, lineHeight: bubble - 2, fontSize: Math.min(9, bubble * 0.55), marginLeft: side + (index === 0 ? lead * cell : 0), marginRight: side, marginVertical: vertical, backgroundColor: bubbleColour }, selected && styles.selectedBubble, holiday && styles.holidayBubble, selected && holiday && styles.selectedHoliday, today && styles.todayBubble, today && !holiday && styles.todayFill]}
+              >
+                {day}
+              </Text>
+            );
+          })}
+        </View>
+      </Pressable>
+    </View>
+  );
+});
+
+export function YearCalendar({ year, width, selectedDate, onSelect, onJump, onZoomChange }: { year: number; width: number; selectedDate: Date; onSelect: (date: Date) => void; onJump: () => void; onZoomChange?: (zoomed: boolean) => void }) {
   const { colors, glassLevel, reduceTransparency } = useCalendarTheme();
-  const styles = createStyles(colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const todayKey = toDateKey(useToday());
-  const {labelLanguage}=usePreferences();
-  const [zoom, setZoom] = useState(1);
+  const selectedKey = toDateKey(selectedDate);
+  const { labelLanguage } = usePreferences();
   const [previewDate, setPreviewDate] = useState<Date | null>(null);
-  const [popupTop, setPopupTop] = useState(90);
   const [detail, setDetail] = useState<Holiday | null>(null);
-  const layout = useRef({ scrollY: 0, months: {} as Record<number, number>, grids: {} as Record<number, number>, dates: {} as Record<string, number> });
-  const hover = useHoverDetails(() => setPreviewDate(null));
-  useEffect(() => { hover.keepOpen(); setPreviewDate(null); }, [year, zoom]);
-  function preview(date: Date) {
-    hover.keepOpen();
-    const index = date.getMonth();
-    setPopupTop(layout.current.scrollY + (layout.current.months[index] ?? 0) + (layout.current.grids[index] ?? 0) + (layout.current.dates[toDateKey(date)] ?? 0) + 18 * zoom + 8);
-    setPreviewDate(date);
-  }
+  const [zoomPercent, setZoomPercent] = useState(100);
+  useEffect(() => { setPreviewDate(null); }, [year]);
+  // Press and hold a date for its details; a tap opens it in the month view.
+  const preview = useCallback((date: Date) => setPreviewDate(date), []);
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+  const select = useCallback((date: Date) => onSelectRef.current(date), []);
   const previewHolidays = previewDate ? holidays2026.filter((holiday) => holiday.date === toDateKey(previewDate)) : [];
-  const canvasWidth = Math.max(330, width) * zoom;
-  const gap = 8 * zoom;
-  const monthWidth = (canvasWidth - gap * 2) / 3;
-  const bubbleSize = Math.min(16 * zoom, (monthWidth - 14 * zoom - 2) / 7 - 1);
-  const holidayDates = new Set(holidays2026.map((holiday) => holiday.date));
+  // The card has more padding than the month card, so the year is laid out to the measured inner width.
+  const [gridWidth, setGridWidth] = useState(width - 8);
+  const gap = 8;
+  // Narrow phones get two months per row so the dates stay readable; pinch zoom covers the rest.
+  const columns = gridWidth >= 330 ? 3 : 2;
+  const monthWidth = Math.floor((gridWidth - gap * (columns - 1)) / columns);
+  const bubbleColour = `${colors.bubble}${reduceTransparency ? "FF" : glassSettings[glassLevel].alpha}`;
 
-  function changeZoom(amount: number) {
-    setZoom((current) => Math.min(1.7, Math.max(0.75, Number((current + amount).toFixed(2)))));
+  // Pinch zoom scales the year as one picture on the UI thread (no re-layout); one finger pans while zoomed.
+  const scale = useSharedValue(1), x = useSharedValue(0), y = useSharedValue(0);
+  const start = useSharedValue({ scale: 1, x: 0, y: 0, focalX: 0, focalY: 0 });
+  const size = useSharedValue({ width: gridWidth, height: 1 });
+  const zoomed = zoomPercent > 100;
+  const onZoomChangeRef = useRef(onZoomChange);
+  onZoomChangeRef.current = onZoomChange;
+  const reportZoom = useCallback((value: number) => {
+    const percent = Math.round(value * 100);
+    setZoomPercent(percent);
+    setPreviewDate(null);
+    onZoomChangeRef.current?.(percent > 100);
+  }, []);
+  useEffect(() => () => onZoomChangeRef.current?.(false), []);
+  const clampX = (value: number, s: number) => { "worklet"; return Math.min(0, Math.max(size.value.width * (1 - s), value)); };
+  const clampY = (value: number, s: number) => { "worklet"; return Math.min(0, Math.max(size.value.height * (1 - s), value)); };
+  function zoomTo(target: number) {
+    const next = Math.min(maxZoom, Math.max(1, target));
+    // Zoom around the middle of the year view.
+    const cx = size.value.width / 2, cy = Math.min(size.value.height, 500) / 2;
+    const px = (cx - x.value) / scale.value, py = (cy - y.value) / scale.value;
+    scale.value = withTiming(next, { duration: 180 });
+    x.value = withTiming(clampX(cx - px * next, next), { duration: 180 });
+    y.value = withTiming(clampY(cy - py * next, next), { duration: 180 });
+    reportZoom(next);
   }
+  const gesture = useMemo(() => {
+    const pinch = Gesture.Pinch()
+      .onStart(event => { start.value = { scale: scale.value, x: x.value, y: y.value, focalX: event.focalX, focalY: event.focalY }; })
+      .onUpdate(event => {
+        const s = Math.min(maxZoom, Math.max(1, start.value.scale * event.scale));
+        // Keep the point under the fingers in place while zooming.
+        const px = (start.value.focalX - start.value.x) / start.value.scale, py = (start.value.focalY - start.value.y) / start.value.scale;
+        scale.value = s;
+        x.value = clampX(event.focalX - px * s, s);
+        y.value = clampY(event.focalY - py * s, s);
+      })
+      .onEnd(() => {
+        if (scale.value < 1.05) { scale.value = withTiming(1, { duration: 160 }); x.value = withTiming(0, { duration: 160 }); y.value = withTiming(0, { duration: 160 }); scheduleOnRN(reportZoom, 1); return; }
+        scheduleOnRN(reportZoom, scale.value);
+      });
+    const pan = Gesture.Pan().enabled(zoomed).maxPointers(1)
+      .onStart(() => { start.value = { ...start.value, x: x.value, y: y.value }; })
+      .onUpdate(event => {
+        x.value = clampX(start.value.x + event.translationX, scale.value);
+        y.value = clampY(start.value.y + event.translationY, scale.value);
+      });
+    return Gesture.Simultaneous(pinch, pan);
+  }, [zoomed, reportZoom]);
+  const zoomStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }, { translateY: y.value }, { scale: scale.value }] }));
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <View style={{ flex: 1, minWidth: 0 }}><Pressable accessibilityLabel="Choose month and year" onPress={onJump}><Text style={styles.title}>{year} at a glance ⌄</Text></Pressable><Text style={styles.hint}>Tap a month to open it. Use − and + to zoom.</Text></View>
+        <View style={{ flex: 1, minWidth: 0 }}><Pressable accessibilityLabel="Choose month and year" onPress={onJump}><Text style={styles.title}>{year} at a glance ⌄</Text></Pressable><Text style={styles.hint}>Tap a date to open it, hold for details. Pinch to zoom.</Text></View>
         <View style={styles.zoomControls}>
-          <Pressable accessibilityLabel="Zoom out" onPress={() => changeZoom(-0.25)} style={({ pressed }) => [styles.zoomButton, pressed && styles.pressed]}><Text allowFontScaling={false} style={styles.zoomText}>−</Text></Pressable>
-          <Pressable accessibilityLabel="Reset zoom" onPress={() => setZoom(1)} style={({ pressed }) => [styles.zoomValue, pressed && styles.pressed]}><Text style={styles.zoomValueText}>{Math.round(zoom * 100)}%</Text></Pressable>
-          <Pressable accessibilityLabel="Zoom in" onPress={() => changeZoom(0.25)} style={({ pressed }) => [styles.zoomButton, pressed && styles.pressed]}><Text allowFontScaling={false} style={styles.zoomText}>＋</Text></Pressable>
+          <Pressable accessibilityLabel="Zoom out" onPress={() => zoomTo(scale.value - 0.5)} style={({ pressed }) => [styles.zoomButton, pressed && styles.pressed]}><Text allowFontScaling={false} style={styles.zoomText}>−</Text></Pressable>
+          <Pressable accessibilityLabel="Reset zoom" onPress={() => zoomTo(1)} style={({ pressed }) => [styles.zoomValue, pressed && styles.pressed]}><Text style={styles.zoomValueText}>{zoomPercent}%</Text></Pressable>
+          <Pressable accessibilityLabel="Zoom in" onPress={() => zoomTo(scale.value + 0.5)} style={({ pressed }) => [styles.zoomButton, pressed && styles.pressed]}><Text allowFontScaling={false} style={styles.zoomText}>＋</Text></Pressable>
         </View>
       </View>
       {!holidayYearLoaded(year) ? <Text style={styles.warning}>Holiday schedule unavailable for {year}.</Text> : null}
-      <ScrollView horizontal onLayout={event => { layout.current.scrollY = event.nativeEvent.layout.y; }} onScrollBeginDrag={() => setPreviewDate(null)} showsHorizontalScrollIndicator={canvasWidth > width} contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.yearGrid, { width: canvasWidth, gap }]}> 
-          {months.map((monthName, monthIndex) => {
-            const viewMonth = new Date(year, monthIndex, 1, 12);
-            const dates = monthGrid(viewMonth);
-            return (
-              <View key={monthName} onLayout={event => { layout.current.months[monthIndex] = event.nativeEvent.layout.y; }} style={[styles.monthCard, { width: monthWidth, padding: 7 * zoom, borderRadius: 13 * zoom }]}>
-                <Pressable accessibilityRole="button" style={{minHeight:44,justifyContent:"center"}} accessibilityLabel={`Open ${monthName} ${year}`} onPress={() => onSelect(new Date(year, monthIndex, 1, 12))}><Text style={[styles.monthName, { fontSize: 11 * zoom, marginBottom: 5 * zoom }]}>{monthName} ↗</Text></Pressable>
-                <View onLayout={event => { layout.current.grids[monthIndex] = event.nativeEvent.layout.y; }} style={styles.miniGrid}>
-                  {weekDays.map((day, index) => <Text allowFontScaling={false} key={`${day}-${index}`} style={[styles.weekDay, { width: `${100 / 7}%`, fontSize: 5.5 * zoom, marginBottom: 4 * zoom }]}>{day}</Text>)}
-                  {dates.map((date) => {
-                    const muted = date.getMonth() !== monthIndex;
-                    const dateKey = toDateKey(date);
-                    const selected = dateKey === toDateKey(selectedDate);
-                    const holiday = holidayDates.has(dateKey);
-                    const today = dateKey === todayKey;
-                    return (
-                      <Pressable
-                        key={dateKey}
-                        disabled={muted}
-                        accessible={false}
-                        importantForAccessibility="no"
-                        accessibilityLabel={muted ? undefined : date.toLocaleDateString()}
-                        onLayout={event => { if (!muted) layout.current.dates[dateKey] = event.nativeEvent.layout.y; }}
-                        onPress={() => onSelect(date)}
-                        onHoverIn={() => preview(date)}
-                        onHoverOut={hover.leave}
-                        onFocus={() => preview(date)}
-                        onBlur={hover.leave}
-                        style={[styles.miniDay, { width: `${100 / 7}%`, height: 18 * zoom }]}
-                      >
-                        {!muted ? <View style={[styles.miniBubble, { width: bubbleSize, height: bubbleSize, backgroundColor: `${colors.bubble}${reduceTransparency ? "FF" : glassSettings[glassLevel].alpha}` }, selected && styles.selectedBubble, holiday && styles.holidayBubble, selected && holiday && { borderColor: colors.primaryDark }, today && {borderColor:todayDateColors.ring,borderWidth:1.5}, today && !holiday && {backgroundColor:todayDateColors.fill}]}><Text allowFontScaling={false} style={[styles.dayText, { fontSize: Math.min(7.5 * zoom, bubbleSize * .62) }, selected && styles.selectedText, holiday && styles.holidayText, today && !holiday && {color:todayDateColors.ink}]}>{date.getDate()}</Text></View> : null}
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            );
-          })}
+      <GestureDetector gesture={gesture}>
+        <View collapsable={false} style={styles.viewport} onLayout={event => { size.value = { width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height }; if (Math.abs(event.nativeEvent.layout.width - gridWidth) > 1) setGridWidth(event.nativeEvent.layout.width); }}>
+          <Animated.View style={[styles.yearGrid, { width: gridWidth, gap }, zoomStyle]}>
+            {months.map((monthName, monthIndex) => (
+              <MiniMonth
+                key={monthName}
+                year={year}
+                monthIndex={monthIndex}
+                monthWidth={monthWidth}
+                selectedKey={selectedDate.getFullYear() === year && selectedDate.getMonth() === monthIndex ? selectedKey : ""}
+                todayKey={todayKey.startsWith(`${year}-${String(monthIndex + 1).padStart(2, "0")}`) ? todayKey : ""}
+                bubbleColour={bubbleColour}
+                styles={styles}
+                onSelect={select}
+                onPreview={preview}
+              />
+            ))}
+          </Animated.View>
         </View>
-      </ScrollView>
-      <View style={styles.legend}><View style={[styles.dot, { ...holidayDateAppearance(colors), borderRadius: 2 }]} /><Text style={styles.legendText}>Holiday</Text><View style={[styles.dot, { backgroundColor: todayDateColors.fill, borderColor:todayDateColors.ring, borderWidth:1.5 }]} /><Text style={styles.legendText}>Today</Text><View style={[styles.dot, { backgroundColor: colors.primary }]} /><Text style={styles.legendText}>Selected</Text></View>
-      {previewDate ? <Pressable onHoverIn={hover.keepOpen} onHoverOut={hover.leave} onFocus={hover.keepOpen} onBlur={hover.leave} onAccessibilityEscape={() => setPreviewDate(null)} accessibilityLiveRegion="polite" style={[styles.datePopup, { top: popupTop }]}>
-        <View style={styles.popupHeader}><View style={{flex:1,gap:3}}><Text style={styles.popupDate}>{previewDate.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage!=="english"?<Text selectable style={[styles.popupHoliday,{writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr",textAlign:"left"}]}>{regionalDateLabel(previewDate,labelLanguage)}</Text>:null}</View><Pressable accessibilityLabel="Close date details" onPress={() => setPreviewDate(null)} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
+      </GestureDetector>
+      <View style={styles.legend}><View style={[styles.dot, { ...holidayDateAppearance(colors), borderRadius: 2 }]} /><Text style={styles.legendText}>Holiday</Text><View style={[styles.dot, { backgroundColor: todayDateColors.fill, borderColor: todayDateColors.ring, borderWidth: 1.5 }]} /><Text style={styles.legendText}>Today</Text><View style={[styles.dot, { backgroundColor: colors.primary }]} /><Text style={styles.legendText}>Selected</Text></View>
+      {previewDate ? <Pressable onAccessibilityEscape={() => setPreviewDate(null)} accessibilityLiveRegion="polite" style={styles.datePopup}>
+        <View style={styles.popupHeader}><View style={{ flex: 1, gap: 3 }}><Text style={styles.popupDate}>{previewDate.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage !== "english" ? <Text selectable style={[styles.popupHoliday, { writingDirection: labelLanguage === "kashmiri" ? "rtl" : "ltr", textAlign: "left" }]}>{regionalDateLabel(previewDate, labelLanguage)}</Text> : null}</View><Pressable accessibilityLabel="Close date details" onPress={() => setPreviewDate(null)} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
         {previewHolidays.length ? previewHolidays.map((holiday) => <Pressable onPress={() => { setDetail(holiday); setPreviewDate(null); }} key={`${holiday.date}-${holiday.name}`}><Text style={styles.popupHoliday}>{holiday.name} · {holiday.scope} · Details & source ↗</Text></Pressable>) : <Text style={styles.popupHoliday}>{holidayYearLoaded(year) ? "No holiday listed for this date." : `Holiday schedule unavailable for ${year}.`}</Text>}
       </Pressable> : null}
       <HolidayDetails holiday={detail} onClose={() => setDetail(null)} />
@@ -106,6 +189,8 @@ export function YearCalendar({ year, width, selectedDate, onSelect, onJump }: { 
   );
 }
 
+// Twelve blurred month shadows add to every frame drawn while scrolling on Android, so they go without there.
+const lightShadows = Platform.OS === "android";
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     card: { width: "100%", maxWidth: 620, gap: spacing.md, padding: 14, backgroundColor: colors.surface, borderRadius: radii.card, borderCurve: "continuous", boxShadow: shadows.card },
@@ -118,19 +203,18 @@ function createStyles(colors: ThemeColors) {
     zoomText: { color: colors.primaryDark, fontSize: 18, fontWeight: "800" },
     zoomValue: { minWidth: 47, height: 38, alignItems: "center", justifyContent: "center", borderRadius: radii.full, backgroundColor: colors.today },
     zoomValueText: { color: colors.todayInk, fontSize: 10, fontWeight: "800" },
-    scrollContent: { minWidth: "100%" },
-    yearGrid: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" },
-    monthCard: { backgroundColor: colors.background, borderColor: colors.line, borderWidth: 1.5, boxShadow: `0 5px 12px ${colors.primarySoft}` },
-    monthName: { color: colors.ink, fontWeight: "800" },
+    viewport: { overflow: "hidden" },
+    yearGrid: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", transformOrigin: "left top" },
+    monthCard: { padding: monthPadding, borderRadius: 13, backgroundColor: colors.background, borderColor: colors.line, borderWidth: monthBorder, boxShadow: lightShadows ? undefined : `0 5px 12px ${colors.primarySoft}` },
+    monthName: { color: colors.ink, fontWeight: "800", fontSize: 11, marginBottom: 5 },
     miniGrid: { flexDirection: "row", flexWrap: "wrap" },
-    weekDay: { color: colors.muted, textAlign: "center", fontWeight: "800" },
-    miniDay: { alignItems: "center", justifyContent: "center" },
-    miniBubble: { alignItems: "center", justifyContent: "center", borderRadius: 5, backgroundColor: `${colors.bubble}AA`, borderColor: `${colors.surface}DD`, borderWidth: 1, boxShadow: `inset 0 1px 1px ${colors.surface}99, 0 3px 5px ${colors.primary}25` },
-    holidayBubble: { ...holidayDateAppearance(colors), borderWidth: 1.5 },
-    holidayText: { color: colors.ink },
-    selectedBubble: { backgroundColor: colors.primary, borderColor: colors.primaryDark },
-    dayText: { color: colors.ink, fontWeight: "700", fontVariant: ["tabular-nums"] },
-    selectedText: { color: colors.onPrimary },
+    weekDay: { color: colors.muted, textAlign: "center", fontWeight: "800", fontSize: 6.5, marginBottom: 2 },
+    dayText: { color: colors.ink, textAlign: "center", fontWeight: "700", fontVariant: ["tabular-nums"], borderRadius: 5, borderColor: `${colors.surface}DD`, borderWidth: 1, overflow: "hidden" },
+    holidayBubble: { ...holidayDateAppearance(colors), borderWidth: 1.5, color: colors.ink },
+    selectedBubble: { backgroundColor: colors.primary, borderColor: colors.primaryDark, color: colors.onPrimary },
+    selectedHoliday: { borderColor: colors.primaryDark },
+    todayBubble: { borderColor: todayDateColors.ring, borderWidth: 1.5 },
+    todayFill: { backgroundColor: todayDateColors.fill, color: todayDateColors.ink },
     legend: { flexDirection: "row", alignItems: "center", gap: 5 },
     dot: { width: 7, height: 7, borderRadius: radii.full, marginLeft: 5 },
     legendText: { color: colors.muted, fontSize: 10, fontWeight: "600" },

@@ -36,6 +36,8 @@ export function Home() {
   const [coloursOpen, setColoursOpen] = useState(false);
   const [detailsDate, setDetailsDate] = useState<Date | null>(null);
   const [jumpOpen, setJumpOpen] = useState(false);
+  // While the year view is zoomed, one finger pans the year instead of scrolling the page.
+  const [yearZoomed, setYearZoomed] = useState(false);
   const today = useToday();
   const followToday = useRef(true);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -116,7 +118,7 @@ export function Home() {
 
   return (
     <SeasonalScreen>
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+    <ScrollView scrollEnabled={!(calendarView === "yearly" && yearZoomed)} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
       <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleOne]} />
       <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleTwo]} />
 
@@ -171,7 +173,7 @@ export function Home() {
           </GestureDetector>
         </>
       ) : (
-        <YearCalendar year={viewMonth.getFullYear()} width={contentWidth} selectedDate={selectedDate} onJump={() => setJumpOpen(true)} onSelect={(date) => { selectDate(date); setCalendarView("monthly"); }} />
+        <YearCalendar year={viewMonth.getFullYear()} width={contentWidth} selectedDate={selectedDate} onJump={() => setJumpOpen(true)} onZoomChange={setYearZoomed} onSelect={(date) => { selectDate(date); setCalendarView("monthly"); }} />
       )}
 
       <YearHolidayList year={viewMonth.getFullYear()} />

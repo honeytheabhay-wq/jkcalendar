@@ -8,7 +8,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { holidays2026, type Holiday } from "@/data/holidays-2026";
 import { HolidayDetails } from "@/components/holiday-details";
 import { toDateKey } from "@/utils/dates";
-import { todayDateColors, radii, shadows, spacing, type ThemeColors, useCalendarTheme } from "@/theme";
+import { todayDateColors, radii, shadows, spacing, type ThemeColors, useLaggedTheme } from "@/theme";
 import { useToday } from "@/utils/today";
 import { usePreferences } from "@/utils/preferences";
 import { regionalDateLabel } from "@/utils/regional-labels";
@@ -84,8 +84,9 @@ const MiniMonth = memo(function MiniMonth({ year, monthIndex, monthWidth, select
   );
 });
 
-export const YearCalendar = memo(function YearCalendar({ year, width, selectedDate, onSelect, onJump, onZoomChange }: { year: number; width: number; selectedDate: Date; onSelect: (date: Date) => void; onJump: () => void; onZoomChange?: (zoomed: boolean) => void }) {
-  const { colors } = useCalendarTheme();
+export const YearCalendar = memo(function YearCalendar({ year, width, selectedDate, onSelect, onJump, onZoomChange, visible = true }: { year: number; width: number; selectedDate: Date; onSelect: (date: Date) => void; onJump: () => void; onZoomChange?: (zoomed: boolean) => void; visible?: boolean }) {
+  // While hidden behind the month view, theme changes reach the year a second later.
+  const { colors } = useLaggedTheme(visible);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const todayKey = toDateKey(useToday());
   const selectedKey = toDateKey(selectedDate);

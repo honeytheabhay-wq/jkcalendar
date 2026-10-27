@@ -10,10 +10,11 @@ import { scheduleOnRN } from "react-native-worklets";
 import { CalendarGrid } from "@/components/calendar-grid";
 import { SeasonalScreen } from "@/components/seasonal-screen";
 import { MonthJump } from "@/components/month-jump";
-import { holidayDateAppearance, todayDateColors, radii, shadows, spacing, switchToLight, type ThemeColors, useCalendarTheme, useSeason } from "@/theme";
+import { holidayDateAppearance, todayDateColors, radii, shadows, spacing, darkBackground, lightBackground, switchToLight, type ThemeColors, useCalendarTheme, useSeason } from "@/theme";
 import { monthLabel, toDateKey } from "@/utils/dates";
 import { useEvents } from "@/utils/events";
 import { setPreference } from "@/utils/preferences";
+import { switchThemeWithFade } from "@/components/theme-fade";
 import { holidayYearLoaded } from "@/utils/holiday-info";
 import { useToday } from "@/utils/today";
 import { useOrderStatus } from "@/utils/official-orders";
@@ -32,7 +33,7 @@ const monthFromIndex = (index: number) => { let date = monthDates.get(index); if
 
 export function Home() {
   const { width } = useWindowDimensions();
-  const { colors, reduceMotion, themeName } = useCalendarTheme(), { setSeasonDateKey } = useSeason();
+  const { colors, reduceMotion, themeName } = useCalendarTheme(), { season, setSeasonDateKey } = useSeason();
   // Dark mode is the Midnight Indigo palette; the moon/sun button beside Colours switches it.
   const dark = themeName === "midnight-indigo";
   const reducedMotion = useReducedMotion() || reduceMotion;
@@ -135,7 +136,7 @@ export function Home() {
 
   return (
     <SeasonalScreen>
-    <Stack.Screen options={{ headerRight: () => <Pressable accessibilityRole="button" accessibilityLabel={dark ? "Switch to light mode" : "Switch to dark mode"} hitSlop={8} onPress={() => { if (dark) switchToLight(); else setPreference("appearance", "dark"); }} style={styles.modeButton}><Text allowFontScaling={false} style={styles.modeText}>{dark ? "☀" : "☾"}</Text></Pressable> }} />
+    <Stack.Screen options={{ headerRight: () => <Pressable accessibilityRole="button" accessibilityLabel={dark ? "Switch to light mode" : "Switch to dark mode"} hitSlop={8} onPress={() => switchThemeWithFade(dark ? lightBackground(season.id) : darkBackground(), () => { if (dark) switchToLight(); else setPreference("appearance", "dark"); })} style={styles.modeButton}><Text allowFontScaling={false} style={styles.modeText}>{dark ? "☀" : "☾"}</Text></Pressable> }} />
     <ScrollView scrollEnabled={!(calendarView === "yearly" && yearZoomed)} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
       <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleOne]} />
       <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleTwo]} />
@@ -191,7 +192,7 @@ export function Home() {
           </GestureDetector>
       </View>
       {yearOpened ? <View pointerEvents={calendarView === "yearly" ? "auto" : "none"} style={[styles.viewPane, calendarView !== "yearly" && styles.offscreen]}>
-        <YearCalendar year={viewMonth.getFullYear()} width={contentWidth} selectedDate={selectedDate} onJump={openJump} onZoomChange={setYearZoomed} onSelect={onYearSelect} />
+        <YearCalendar year={viewMonth.getFullYear()} width={contentWidth} selectedDate={selectedDate} onJump={openJump} onZoomChange={setYearZoomed} onSelect={onYearSelect} visible={calendarView === "yearly"} />
       </View> : null}
 
       <YearHolidayList year={viewMonth.getFullYear()} />

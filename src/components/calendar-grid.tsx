@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import Animated, { cubicBezier, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 
 import { holidays2026, type Holiday } from "@/data/holidays-2026";
-import { glassSettings, holidayDateAppearance, todayDateColors, radii, type ThemeColors, type GlassLevel, useCalendarTheme } from "@/theme";
+import { glassSettings, holidayDateAppearance, todayDateColors, radii, type ThemeColors, type GlassLevel, useLaggedTheme } from "@/theme";
 import { HolidayDetails } from "./holiday-details";
 import { holidayYearLoaded } from "@/utils/holiday-info";
 import { useHoverDetails } from "@/utils/hover-details";
@@ -23,6 +23,22 @@ const holidaysByDate = new Map<string, string[]>();
 holidays2026.forEach((holiday) => {
   holidaysByDate.set(holiday.date, [...(holidaysByDate.get(holiday.date) ?? []), holiday.name]);
 });
+
+// Date strings are cached: toLocaleDateString is slow on Hermes and every theme change re-renders 126 bubbles.
+const spokenDates = new Map<string, string>();
+function spokenDate(date: Date) {
+  const key = toDateKey(date);
+  let text = spokenDates.get(key);
+  if (!text) { text = date.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" }); spokenDates.set(key, text); }
+  return text;
+}
+const regionalLabels = new Map<string, string>();
+function regionalLabelFor(date: Date, labelLanguage: Parameters<typeof regionalDateLabel>[1], hijriOffset: number) {
+  const key = `${toDateKey(date)}|${labelLanguage}|${hijriOffset}`;
+  let text = regionalLabels.get(key);
+  if (!text) { text = [regionalDateLabel(date, labelLanguage), hijriLabel(hijriDate(date, hijriOffset)), panchangLabel(kashmiriPanchang(date)), hindiLabel(kashmiriPanchang(date))].filter(Boolean).join(". "); regionalLabels.set(key, text); }
+  return text;
+}
 
 type Props = {
   viewMonth: Date;
@@ -99,12 +115,7 @@ const DayBubble = memo(function DayBubble({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${date.toLocaleDateString(undefined, {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })}${today ? ". Today" : ""}${holidayText}${regionalLabel?`. ${regionalLabel}`:""}`}
+      accessibilityLabel={`${spokenDate(date)}${today ? ". Today" : ""}${holidayText}${regionalLabel?`. ${regionalLabel}`:""}`}
       accessibilityState={{ selected }}
       accessibilityHint="Opens this day’s holiday and personal event details"
       hitSlop={2}
@@ -158,7 +169,8 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
   const showHijri = lunarDates === "hijri" || lunarDates === "both" || lunarDates === "hijri-hindi";
   // The right-hand label is the tithi, in Kashmiri Pandit (S7) or Hindi (शु7) form.
   const tithiShort = lunarDates === "kashmiri" || lunarDates === "both" ? panchangShort : lunarDates === "hindi" || lunarDates === "hijri-hindi" ? hindiShort : null;
-  const { colors, glassLevel, textScale, reduceTransparency, reduceMotion, highContrast } = useCalendarTheme();
+  // The visible month takes a theme change at once; the off-screen neighbours follow a second later.
+  const { colors, glassLevel, textScale, reduceTransparency, reduceMotion, highContrast } = useLaggedTheme(active);
   const reducedMotion = useReducedMotion() || reduceMotion;
   const { fontScale } = useWindowDimensions();
   const weekHeight=Math.max(36,Math.ceil(24*textScale*fontScale));
@@ -222,7 +234,7 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
               weekend={date.getDay() === 0 || date.getDay() === 6}
               hasEvent={eventDates.has(dateKey)}
               holidayNames={holidaysByDate.get(dateKey) ?? noHolidays}
-              regionalLabel={[regionalDateLabel(date,labelLanguage),hijriLabel(hijriDate(date,hijriOffset)),panchangLabel(kashmiriPanchang(date)),hindiLabel(kashmiriPanchang(date))].filter(Boolean).join(". ")}
+              regionalLabel={regionalLabelFor(date, labelLanguage, hijriOffset)}
               lunarLeft={showHijri ? hijriShortLabel(hijriDate(date,hijriOffset)) : ""}
               lunarRight={tithiShort ? tithiShort(kashmiriPanchang(date)) : ""}
               colors={colors}
@@ -254,8 +266,8 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
   );
 });
 
-// Blurred and inset box shadows are costly on Android and are redrawn while the season layer animates above the
-// grid, so Android bubbles get one light shadow; the gloss layers still give the glass look.
+// Box shadows are costly on Android: redrawn while the season layer animates above the grid and rebuilt for all 126
+// bubbles on every theme change. Android bubbles go without; the gloss layers still give the glass look.
 const lightShadows = Platform.OS === "android";
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
@@ -264,7 +276,7 @@ function createStyles(colors: ThemeColors) {
     dateGrid: { flexDirection: "row", flexWrap: "wrap", paddingTop: 2 },
     weekDay: { height: 32, color: colors.onPrimary, fontSize: 11, lineHeight: 30, fontWeight: "800", letterSpacing: 0.45, textAlign: "center", textAlignVertical: "center", backgroundColor: colors.primary, borderColor: colors.primaryDark, borderWidth: 1, borderRadius: radii.full, overflow: "hidden" },
     weekendLabel: { color: colors.onPrimary, backgroundColor: colors.holiday, borderColor: colors.holiday },
-    dayBubble: { overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: `${colors.bubble}99`, borderColor: `${colors.surface}E6`, borderWidth: 1.5, borderCurve: "continuous", boxShadow: lightShadows ? `0 2px 3px ${colors.primary}26` : `inset 0 1px 1px ${colors.surface}CC, inset 0 -1px 2px ${colors.primary}25, 0 1px 0 ${colors.primary}35, 0 8px 16px ${colors.primary}25` },
+    dayBubble: { overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: `${colors.bubble}99`, borderColor: `${colors.surface}E6`, borderWidth: 1.5, borderCurve: "continuous", boxShadow: lightShadows ? undefined : `inset 0 1px 1px ${colors.surface}CC, inset 0 -1px 2px ${colors.primary}25, 0 1px 0 ${colors.primary}35, 0 8px 16px ${colors.primary}25` },
     gloss: { position: "absolute", width: "94%", height: "42%", top: 1, left: "3%", borderRadius: 10, backgroundColor: `${colors.surface}66` },
     glassShine: { position: "absolute", width: "23%", height: "150%", top: "-25%", left: "12%", transform: [{ rotate: "28deg" }], backgroundColor: `${colors.surface}28` },
     glassGlowOne: { position: "absolute", width: 150, height: 150, borderRadius: 999, backgroundColor: colors.primarySoft, opacity: 0.75, top: 10, left: 30 },

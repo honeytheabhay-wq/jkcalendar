@@ -12,6 +12,7 @@ import { useEvents, useReminderRefresh } from "@/utils/events";
 import { getPreferences } from "@/utils/preferences";
 import { checkOfficialOrders, getOrderStatus } from "@/utils/official-orders";
 import { syncWidgets } from "@/widgets/sync";
+import { ThemeFade } from "@/components/theme-fade";
 
 function Navigation() {
   useReminderRefresh();
@@ -26,7 +27,8 @@ function Navigation() {
   },[]);
   useEffect(()=>{
     const refresh=()=>{void syncWidgets(events,colors).catch(()=>{});const status=getOrderStatus();if(getPreferences().autoCheckOrders&&Date.now()-(status.attemptedAt??0)>(status.error?900_000:86_400_000))void checkOfficialOrders();};
-    refresh();const listener=AppState.addEventListener("change",state=>{if(state==="active")refresh();});return()=>listener.remove();
+    // Delayed so a dark/light switch (which changes colors) is not competing with the widget refresh.
+    const timer=setTimeout(refresh,1500);const listener=AppState.addEventListener("change",state=>{if(state==="active")refresh();});return()=>{clearTimeout(timer);listener.remove();};
   },[events,colors]);
   return (
     <>
@@ -53,6 +55,7 @@ function Navigation() {
           }}
         />
       </Stack>
+      <ThemeFade />
     </>
   );
 }

@@ -79,11 +79,13 @@ export function SeasonalBackground({modal=false}:{modal?:boolean}) {
         // Faded towards the centre to keep text readable, but snow, rain and motes keep a minimum so they stay visible.
         animationName[`${progress*100}%`]={opacity:p.opacity*life*Math.max(seasonStrengthAt(x,y),p.floor),transform:[{translateY:dy},{translateX:dx},{rotate:`${rotate}deg`},{scale}]};
       }
-      const colour=themeName==="midnight-indigo"?p.darkColour:p.colour;
-      return <Animated.View key={`${season.id}-${seasonalMotion}-${index}`} style={{position:"absolute",left:`${p.x}%`,top:falling?0:height*p.y/100,width:p.width,height:p.height,animationName,animationDuration:p.duration,animationDelay:-p.phase*p.duration,animationIterationCount:"infinite",animationTimingFunction:"linear",animationPlayState:running?"running":"paused"}}><Motif particle={p} colour={colour} /></Animated.View>;
-    }):null,[enabled,width,height,season.id,seasonalMotion,themeName,running]);
+      return {p,index,style:{position:"absolute" as const,left:`${p.x}%` as const,top:falling?0:height*p.y/100,width:p.width,height:p.height,animationName,animationDuration:p.duration,animationDelay:-p.phase*p.duration,animationIterationCount:"infinite" as const,animationTimingFunction:"linear" as const}};
+    }):null,[enabled,width,height,season.id,seasonalMotion]);
+  // Colour and play state are applied outside the keyframes, so dark/light switches only recolour the pieces and the
+  // animations keep running instead of being rebuilt.
+  const dark=themeName==="midnight-indigo";
   return <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onLayout={event=>setSize({width:event.nativeEvent.layout.width,height:event.nativeEvent.layout.height})} style={styles.layer}>
-    {particles}
+    {particles?.map(({p,index,style})=><Animated.View key={`${season.id}-${seasonalMotion}-${index}`} style={[style,{animationPlayState:running?"running":"paused"}]}><Motif particle={p} colour={dark?p.darkColour:p.colour} /></Animated.View>)}
   </View>;
 }
 const styles=StyleSheet.create({layer:{...StyleSheet.absoluteFill,overflow:"hidden",zIndex:10000}});

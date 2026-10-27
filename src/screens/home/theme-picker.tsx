@@ -1,5 +1,4 @@
 import * as Haptics from "expo-haptics";
-import { Host, Switch } from "@expo/ui";
 import { Alert, Pressable, StyleSheet, useColorScheme, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 
@@ -26,7 +25,11 @@ export function ThemePicker() {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>COLOUR THEME</Text>
-      <Host matchContents colorScheme={themeName==="midnight-indigo"?"dark":"light"} seedColor={colors.primary}><Switch label="Automatic seasonal colours" value={preferences.autoSeasonColours} onValueChange={value=>{try{setPreference("autoSeasonColours",value);if(value)showColours();}catch{Alert.alert("Could not save colour", "Please try again.");}}} /></Host>
+      {/* A plain React Native switch: the native Compose switch made the Colours panel slow to open. */}
+      <Pressable accessibilityRole="switch" accessibilityState={{checked:preferences.autoSeasonColours}} onPress={()=>{const value=!preferences.autoSeasonColours;try{setPreference("autoSeasonColours",value);if(value)showColours();}catch{Alert.alert("Could not save colour", "Please try again.");}}} style={styles.switchRow}>
+        <Text style={styles.switchLabel}>Automatic seasonal colours</Text>
+        <View style={[styles.track, preferences.autoSeasonColours && styles.trackOn]}><View style={[styles.thumb, preferences.autoSeasonColours && styles.thumbOn]} /></View>
+      </Pressable>
       <Text style={{color:colors.muted,fontSize:12,lineHeight:17}}>{darkAppearance?"Dark mode uses Midnight Indigo. Choosing another colour switches to Light.":preferences.autoSeasonColours?`${season.name} · ${season.colour}`:"Manual colour choice"}</Text>
       <View style={styles.options}>
         {(Object.entries(themes) as [ManualThemeName, (typeof themes)[ManualThemeName]][]).map(([name, theme]) => {
@@ -57,6 +60,12 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: { gap: spacing.sm },
     label: { color: colors.muted, fontSize: 10, fontWeight: "800", letterSpacing: 1.4 },
+    switchRow: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 12 },
+    switchLabel: { flex: 1, color: colors.ink, fontSize: 15 },
+    track: { width: 48, height: 28, borderRadius: 14, padding: 3, backgroundColor: colors.line, alignItems: "flex-start" },
+    trackOn: { backgroundColor: colors.primary, alignItems: "flex-end" },
+    thumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.surface },
+    thumbOn: { backgroundColor: colors.onPrimary },
     options: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
     option: { width: "47%", minHeight: 62, justifyContent: "center", gap: 6, paddingHorizontal: 9, paddingVertical: 8, backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, borderRadius: radii.lg, borderCurve: "continuous" },
     optionSelected: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primarySoft },

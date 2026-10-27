@@ -1,8 +1,8 @@
 import "expo-sqlite/localStorage/install";
 
-import { createContext, type PropsWithChildren, use, useMemo, useState, useSyncExternalStore } from "react";
+import { createContext, type PropsWithChildren, startTransition, use, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useColorScheme } from "react-native";
-import { setPreference, textMultiplier, usePreferences } from "@/utils/preferences";
+import { getPreferences, setPreference, textMultiplier, usePreferences } from "@/utils/preferences";
 import { useSystemAccessibility } from "@/utils/system-accessibility";
 import { seasonOn, type Season, type SeasonId } from "@/utils/seasons";
 import { fromDateKey, toDateKey } from "@/utils/dates";
@@ -148,6 +148,13 @@ function subscribe(listener: () => void) {
   };
 }
 
+// Background of the theme that switching to light will show, for the fade cover.
+export function lightBackground(seasonId: SeasonId) {
+  const name = getPreferences().autoSeasonColours ? seasonId : themeCache === "midnight-indigo" ? "dal-lake" : themeCache;
+  return name in seasonalThemes ? seasonalThemes[name as SeasonId].colors.background : themes[name as ManualThemeName].colors.background;
+}
+export const darkBackground = () => themes["midnight-indigo"].colors.background;
+
 // Switches out of dark mode: Light appearance, and away from Midnight Indigo if it was the manual colour.
 export function switchToLight() {
   setPreference("appearance", "light");
@@ -202,6 +209,20 @@ export function CalendarThemeProvider({ children }: PropsWithChildren) {
   );
   const seasonValue = useMemo(() => ({ season, setSeasonDateKey }), [season]);
   return <SeasonContext value={seasonValue}><ThemeContext value={value}>{children}</ThemeContext></SeasonContext>;
+}
+
+// For parts that are off screen (neighbouring month pages, the hidden year view): they take a theme change about a
+// second later, after the dark/light fade has finished, instead of adding to the frame that the fade has to cover.
+// They switch to the live theme the moment they become visible.
+export function useLaggedTheme(visible: boolean) {
+  const theme = useCalendarTheme();
+  const [lagged, setLagged] = useState(theme);
+  useEffect(() => {
+    if (lagged === theme) return;
+    const timer = setTimeout(() => startTransition(() => setLagged(theme)), 1000);
+    return () => clearTimeout(timer);
+  }, [theme]);
+  return visible ? theme : lagged;
 }
 
 export function useCalendarTheme() {

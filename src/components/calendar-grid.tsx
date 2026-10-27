@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text as Span, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
 import Animated, { cubicBezier, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
@@ -202,9 +202,11 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
   const popupRow = popup ? Math.floor(popup.index / 7) : 0;
   const popupRowTop = weekHeight + 18 + popupRow * (cellSize + gap);
   const calendarHeight=weekHeight+18+cellSize*6+gap*5;
-  const above=popupRowTop-8,below=calendarHeight-popupRowTop-cellSize-8;
-  const popupMaxHeight=Math.min(200,Math.max(above,below));
-  const popupTop = above>=below ? popupRowTop-Math.min(popupHeight,popupMaxHeight)-8 : popupRowTop+cellSize+8;
+  // The pop-up may use the whole calendar height (its header alone now holds three calendars). It sits below the
+  // tapped row if it fits, else above it, else as low as it fits while covering the row as little as possible.
+  const popupMaxHeight=calendarHeight-8;
+  const shown=Math.min(popupHeight,popupMaxHeight), belowTop=popupRowTop+cellSize+8, aboveTop=popupRowTop-shown-8;
+  const popupTop=belowTop+shown<=calendarHeight?belowTop:aboveTop>=0?aboveTop:Math.max(0,calendarHeight-shown);
   const popupHolidays = popup ? holidays2026.filter((holiday) => holiday.date === toDateKey(popup.date)) : [];
   const popupKey=popup ? toDateKey(popup.date) : "";
   const popupEvents=events.filter(event=>occursOn(event,popupKey)).sort((a,b)=>(a.time??"").localeCompare(b.time??""));
@@ -252,8 +254,8 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
       </View>
       {popup ? <Pressable onHoverIn={hover.keepOpen} onHoverOut={hover.leave} onFocus={hover.keepOpen} onBlur={hover.leave} onLayout={event => setPopupHeight(event.nativeEvent.layout.height)} accessibilityLiveRegion="polite" onAccessibilityEscape={() => setPopup(null)} style={[styles.popupCard, { width: popupWidth, left: popupLeft, top: popupTop, maxHeight:popupMaxHeight }]}>
         <View style={styles.popupHeader}><View style={{flex:1,gap:3}}><Text style={styles.popupDate}>{popup.date.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage!=="english"?<Text selectable style={[styles.popupScope,{writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr",textAlign:"left"}]}>{regionalDateLabel(popup.date,labelLanguage)}</Text>:null}<Text selectable style={styles.popupScope}>Hijri: {hijriLabel(hijriDate(popup.date,hijriOffset))} (approx.)</Text><Text selectable style={styles.popupScope}>Kashmiri Pandit: {panchangLabel(kashmiriPanchang(popup.date))}</Text><Text selectable style={styles.popupScope}>Hindi: {hindiLabel(kashmiriPanchang(popup.date))}</Text></View><Pressable accessibilityLabel="Close date details" onPress={() => { hover.keepOpen(); setPopup(null); }} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
-        <ScrollView style={[styles.popupScroll,{maxHeight:Math.max(45,popupMaxHeight-78)}]} contentContainerStyle={{gap:8}} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-          {popupHolidays.length ? popupHolidays.map((holiday) => <Pressable accessibilityRole="button" onPress={() => { setDetail(holiday); setPopup(null); }} key={`${holiday.date}-${holiday.name}`} style={styles.popupHoliday}><Text style={styles.popupName}>{holiday.name}</Text><Text style={styles.popupScope}>{holiday.scope} · {holiday.kind}{holiday.subjectToMoon ? " · Subject to moon sighting" : ""}</Text><Text style={styles.popupScope}>Details & source ↗</Text></Pressable>) : <Text style={styles.popupScope}>{holidayYearLoaded(popup.date.getFullYear()) ? "No holiday listed for this date." : `Holiday schedule unavailable for ${popup.date.getFullYear()}.`}</Text>}
+        <ScrollView style={styles.popupScroll} contentContainerStyle={{gap:8}} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+          {popupHolidays.length ? popupHolidays.map((holiday) => <Pressable accessibilityRole="button" onPress={() => { setDetail(holiday); setPopup(null); }} key={`${holiday.date}-${holiday.name}`} style={styles.popupHoliday}><Text style={styles.popupName}>{holiday.name}</Text><Text style={styles.popupScope}>{holiday.scope} · {holiday.kind}{holiday.subjectToMoon ? " · Subject to moon sighting" : ""} · <Span style={styles.popupLink}>Details & source ↗</Span></Text></Pressable>) : <Text style={styles.popupScope}>{holidayYearLoaded(popup.date.getFullYear()) ? "No holiday listed for this date." : `Holiday schedule unavailable for ${popup.date.getFullYear()}.`}</Text>}
           {popupEvents.map(event=><View key={event.id} style={styles.popupEvent}>
             <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${event.title}`} onPress={()=>router.push({pathname:"/add-event",params:{id:event.id}})} style={styles.popupEventText}><Text style={styles.popupName}>{event.title}</Text><Text style={styles.popupScope}>{event.time||"All day"}{event.repeat&&event.repeat!=="none"?` · ${event.repeat}`:""}{event.reminderMinutes!=null?" · Reminder":""} · Edit</Text></Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${event.title}`} onPress={()=>onDeleteEvent(event.id,event.title)} style={styles.popupClose}><Text style={{color:colors.danger,fontSize:20}}>×</Text></Pressable>
@@ -303,13 +305,15 @@ function createStyles(colors: ThemeColors) {
     holidayNumber: { color: colors.ink },
     eventDot: { backgroundColor: colors.primaryDark },
     selectedDot: { backgroundColor: colors.onPrimary },
-    popupCard: { position: "absolute", zIndex: 100, elevation: 12, padding: 13, maxHeight: 200, borderRadius: 18, backgroundColor: colors.surface, borderColor: colors.primarySoft, borderWidth: 1, boxShadow: `0 12px 30px ${colors.primary}35` },
+    popupCard: { position: "absolute", zIndex: 100, elevation: 12, padding: 13, borderRadius: 18, backgroundColor: colors.surface, borderColor: colors.primarySoft, borderWidth: 1, boxShadow: `0 12px 30px ${colors.primary}35` },
     popupHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
     popupDate: { color: colors.ink, fontSize: 13, lineHeight: 18, fontWeight: "800" },
     popupClose: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
     popupCloseText: { color: colors.muted, fontSize: 22 },
-    popupScroll: { maxHeight: 135, marginTop: 8 },
-    popupHoliday: { marginBottom: 8, gap: 3 },
+    // Shrinks to fit inside the card's maximum height and scrolls if the holidays and events are longer.
+    popupScroll: { flexShrink: 1, marginTop: 8 },
+    popupHoliday: { marginBottom: 2, gap: 2 },
+    popupLink: { color: colors.primaryDark, fontWeight: "700" },
     popupName: { color: colors.primaryDark, fontSize: 13, lineHeight: 18, fontWeight: "700" },
     popupScope: { color: colors.muted, fontSize: 11, lineHeight: 16 },
     popupEvent: { flexDirection: "row", alignItems: "center", gap: 6, borderTopWidth: 1, borderTopColor: colors.line },

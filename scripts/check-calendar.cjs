@@ -34,6 +34,14 @@ async function main() {
   for(const [id,script] of Object.entries({harud:'ہارُد',wand:'وَنٛدٕ',sonth:'سونٛتھ',grishm:'گرٛیشِم',wahrath:'ؤہراتھ',shishur:'شِشُر'}))assert.equal(seasons[id].script,script);
   assert.equal(dogriSeasonLabel('sonth'),'ब्हार · Bhar');assert.equal(dogriSeasonLabel('grishm'),'सोहा · Soha');
   assert.equal(dogriSeasonLabel('harud'),'पत्तर-झाड़ · Pattar-Jhar');assert.equal(dogriSeasonLabel('wand'),'स्याल · Syal');assert.equal(dogriSeasonLabel('shishur'),'स्याल · Syal');assert.equal(dogriSeasonLabel('wahrath'),'बरसात / बरखा रुत्त · Barsat / Barkha Rutt');
+  const {buildHolidayReminderPlan}=load('src/utils/holiday-reminders.ts');
+  {const now=new Date(2026,9,27,12),plan=buildHolidayReminderPlan(holidays2026,'general',19,now);
+   assert(plan.length>0&&plan.length<=20);assert(plan.every(p=>p.at>now.getTime()&&new Date(p.at).getHours()===19));
+   const diwali=plan.find(p=>p.date==='2026-11-08');assert(diwali&&diwali.title==='Tomorrow: Diwali'&&/offices closed/.test(diwali.body));
+   assert.equal(new Date(diwali.at).getDate(),7);
+   assert(!plan.some(p=>p.date==='2026-11-10'),'local Urs excluded from J&K-wide reminders');
+   assert(buildHolidayReminderPlan(holidays2026,'all',19,now).some(p=>p.date==='2026-11-10'&&/moon/.test(p.body)));
+   assert.equal(buildHolidayReminderPlan(holidays2026,'off',19,now).length,0);}
   const {seasonalScenes,seasonalParticles,seasonMotionEnabled,normaliseSeasonalMotion,seasonFadeStops,seasonStrengthAt,seasonFadeMask}=load('src/utils/season-effects.ts');
   for(const [id,kinds] of Object.entries({sonth:['petal','chinar'],grishm:['mote','sunglow'],wahrath:['mist','rain'],harud:['chinar'],wand:['mist','sparkle'],shishur:['flake']})){
     const subtle=seasonalParticles(id),lively=seasonalParticles(id,'lively');
@@ -122,6 +130,8 @@ async function main() {
     async cancelScheduledNotificationAsync(id) { cancellations.push(id); scheduled = scheduled.filter(item => item.identifier !== id); },
     async scheduleNotificationAsync(item) { if(failures){failures--;throw new Error('Temporary scheduling failure');}scheduled.push(item); return item.identifier; },
   });
+  // These assertions count event alerts only, so holiday reminders are switched off in the stored preferences.
+  {const memory=new Map([['jk-calendar-preferences-v1',JSON.stringify({holidayReminders:'off'})]]);global.localStorage={getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,value)};}
   const { syncReminders, requestReminderPermission } = load('src/utils/reminders.ts');
   const future = { ...base, date: '2099-01-01', repeat: 'none', updatedAt: 1 };
   await syncReminders([future]); assert.equal(scheduled.length, 2);
@@ -149,6 +159,7 @@ async function main() {
   granted=false;await assert.rejects(()=>sendTestReminder());
   const memory=new Map();global.localStorage={getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,value)};
   memory.set('jk-calendar-preferences-v1',JSON.stringify({reduceMotion:true,labelLanguage:'invalid',autoSeasonColours:false}));
+  cache.delete(path.resolve(root,'src/utils/preferences.ts')); // reminders loaded it earlier; read the new storage
   const {getPreferences,setPreference}=load('src/utils/preferences.ts');
   assert.equal(getPreferences().labelLanguage,'english');assert.equal(getPreferences().reduceMotion,true);assert.equal(getPreferences().autoSeasonColours,false);
   assert.equal(getPreferences().seasonalMotion,'lively');setPreference('seasonalMotion','off');assert.equal(getPreferences().seasonalMotion,'off');assert.equal(JSON.parse(memory.get('jk-calendar-preferences-v1')).seasonalMotion,'off');setPreference('seasonalMotion','lively');assert.equal(JSON.parse(memory.get('jk-calendar-preferences-v1')).seasonalMotion,'lively');

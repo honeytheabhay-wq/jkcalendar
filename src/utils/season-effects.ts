@@ -34,7 +34,7 @@ export function seasonalParticles(id:SeasonId,level:SeasonalMotionLevel="subtle"
     if(kind==="sunglow"){width=260;height=260;x=52;y=-10;colour="#F2C766";duration=18000;opacity=.38;}
     if(kind==="mote"){width=7+(index%3)*3;height=width;y=35+(index*17)%60;duration=18000+(index%4)*2600;opacity=.6;floor=.55;if(index%3===2){colour="#E9C56E";}}
     if(kind==="mist"){width=200;height=80;x=left?-30:55;y=index%4<2?4:78;duration=30000;opacity=.38;colour=id==="wand"?"#D9CBB4":"#A9BFB3";darkColour=id==="wand"?"#E6D7BD":"#C2DECF";}
-    if(kind==="rain"){width=6+(index%3)*1.5;height=width*1.35;duration=2600+(index%4)*420;opacity=.55;floor=.5;}
+    if(kind==="rain"){width=8+(index%3)*2;height=width*1.35;duration=3600+(index%4)*500;opacity=.55;floor=.5;}
     if(kind==="sparkle"){width=14+(index%3)*5;height=width;y=8+(index*29)%80;duration=17000+(index%3)*2200;opacity=.6;floor=.5;if(index%3===1){colour="#C9A877";darkColour="#F3E2C2";}}
     if(kind==="snow"){width=4+(index%4)*2;height=width;duration=17000+(index%5)*2400;opacity=.58;floor=.55;if(index%3===1){colour="#9CC2DE";}}
     // Snowflakes: sizes from about 9 to 30 and fall times from about 15 to 28 s, so they never move in step.

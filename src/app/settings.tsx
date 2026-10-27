@@ -7,7 +7,8 @@ import { useCalendarTheme } from "@/theme";
 import { getEvents, useEvents } from "@/utils/events";
 import { setPreference, usePreferences } from "@/utils/preferences";
 import { useReminderStatus } from "@/utils/reminder-status";
-import { sendTestReminder, syncReminders } from "@/utils/reminders";
+import { requestReminderPermission, sendTestReminder, syncReminders } from "@/utils/reminders";
+import { holidayReminderHours, holidayReminderPreview, holidayReminderScopes } from "@/utils/holiday-reminders";
 import { checkOfficialOrders, useOrderStatus } from "@/utils/official-orders";
 import { officialOrdersUrl } from "@/utils/official-orders-model";
 import { widgetData } from "@/utils/widget-data";
@@ -48,6 +49,10 @@ export default function SettingsRoute() {
     </View>
     <View style={section}>
       {heading("Reminders")}
+      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Holiday reminders</Text>
+      <Host matchContents colorScheme={dark?"dark":"light"} seedColor={c.primary}><Picker selectedValue={preferences.holidayReminders} onValueChange={value=>{if(value!=="off"&&value!=="general"&&value!=="all")return;void run(async()=>{setPreference("holidayReminders",value);if(value!=="off"&&!await requestReminderPermission())return "Allow notifications in phone settings to get holiday reminders.";await syncReminders(getEvents());});}}>{holidayReminderScopes.map(scope=><Picker.Item key={scope.value} label={scope.label} value={scope.value} />)}</Picker></Host>
+      {preferences.holidayReminders!=="off"?<View style={{flexDirection:"row",flexWrap:"wrap",gap:8}}>{holidayReminderHours.map(hour=><Pressable key={hour} accessibilityRole="button" accessibilityState={{selected:preferences.holidayReminderHour===hour}} onPress={()=>void run(async()=>{setPreference("holidayReminderHour",hour);await syncReminders(getEvents());})} style={{minHeight:44,paddingHorizontal:14,justifyContent:"center",borderRadius:22,backgroundColor:preferences.holidayReminderHour===hour?c.primary:c.primarySoft}}><Text style={{color:preferences.holidayReminderHour===hour?c.onPrimary:c.primaryDark,fontSize:13}}>{holidayReminderPreview(hour)}</Text></Pressable>)}</View>:null}
+      {note(preferences.holidayReminders==="off"?"No holiday alerts.":`A notification at ${holidayReminderPreview(preferences.holidayReminderHour)} the evening before each ${preferences.holidayReminders==="general"?"J&K-wide ":""}holiday, e.g. “Tomorrow: Diwali · Government offices closed”. Moon-dependent dates are marked.`)}
       {note(reminders.granted===null?"Checking notification permission…":reminders.granted?`Notifications allowed · ${reminders.queued}/${reminders.expected} future reminders queued`:"Notifications are off. Events are still saved.")}
       {note(reminders.lastSyncAt?`Last queue check: ${new Date(reminders.lastSyncAt).toLocaleString()}`:"No queue check completed yet.")}
       {reminders.error?<Text accessibilityRole="alert" style={{color:c.danger,fontSize:13}}>{reminders.error}</Text>:null}

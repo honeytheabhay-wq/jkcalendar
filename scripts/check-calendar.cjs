@@ -34,6 +34,19 @@ async function main() {
   for(const [id,script] of Object.entries({harud:'ہارُد',wand:'وَنٛدٕ',sonth:'سونٛتھ',grishm:'گرٛیشِم',wahrath:'ؤہراتھ',shishur:'شِشُر'}))assert.equal(seasons[id].script,script);
   assert.equal(dogriSeasonLabel('sonth'),'ब्हार · Bhar');assert.equal(dogriSeasonLabel('grishm'),'सोहा · Soha');
   assert.equal(dogriSeasonLabel('harud'),'पत्तर-झाड़ · Pattar-Jhar');assert.equal(dogriSeasonLabel('wand'),'स्याल · Syal');assert.equal(dogriSeasonLabel('shishur'),'स्याल · Syal');assert.equal(dogriSeasonLabel('wahrath'),'बरसात / बरखा रुत्त · Barsat / Barkha Rutt');
+  const {kashmiriPanchang,hijriDate}=load('src/utils/regional-calendars.ts');
+  {const d=s=>{const[y,m,x]=s.split('-').map(Number);return new Date(y,m-1,x,12);};
+   const p=s=>{const v=kashmiriPanchang(d(s));return `${v.adhik?'Adhik ':''}${v.monthName} ${v.paksha} ${v.tithiName}`;};
+   assert.equal(p('2026-02-15'),'Phalguna Krishna Trayodashi'); // Herath
+   assert.equal(p('2026-05-01'),'Vaishakha Shukla Purnima'); // Buddha Purnima
+   assert.equal(p('2026-05-25'),'Adhik Jyeshtha Shukla Dashami'); // 2026 has an Adhik Jyeshtha
+   assert.equal(p('2026-06-22'),'Jyeshtha Shukla Ashtami'); // Zyeth Atham, Mela Khir Bhawani
+   assert.equal(p('2026-08-28'),'Shravana Shukla Purnima'); // Raksha Bandhan
+   assert.equal(p('2026-09-04'),'Bhadrapada Krishna Ashtami'); // Janmashtami
+   const navreh=kashmiriPanchang(d('2026-03-19'));assert(navreh.navreh&&navreh.saptarishiYear===5102&&navreh.tithiName==='Pratipada');
+   assert.equal(kashmiriPanchang(d('2026-03-18')).saptarishiYear,5101);assert(kashmiriPanchang(d('2027-04-07')).navreh);
+   for(const [s,day,month] of [['2026-05-27',10,12],['2026-06-26',10,1],['2026-08-26',12,3]]){const h=hijriDate(d(s));assert.equal(h.day,day,s);assert.equal(h.month,month,s);}
+   assert.equal(hijriDate(d('2026-03-21'),-2).month,10);assert.equal(hijriDate(d('2026-03-21'),-2).day,1);}
   const {buildHolidayReminderPlan}=load('src/utils/holiday-reminders.ts');
   {const now=new Date(2026,9,27,12),plan=buildHolidayReminderPlan(holidays2026,'general',19,now);
    assert(plan.length>0&&plan.length<=20);assert(plan.every(p=>p.at>now.getTime()&&new Date(p.at).getHours()===19));

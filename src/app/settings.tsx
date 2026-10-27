@@ -15,6 +15,7 @@ import { widgetData } from "@/utils/widget-data";
 import { syncWidgets } from "@/widgets/sync";
 import { labelLanguages } from "@/utils/regional-labels";
 import { seasonalMotionLevels } from "@/utils/season-effects";
+import { hijriDate, hijriLabel, hijriOffsets, kashmiriPanchang, panchangLabel } from "@/utils/regional-calendars";
 import { SeasonalScreen } from "@/components/seasonal-screen";
 
 export default function SettingsRoute() {
@@ -39,6 +40,12 @@ export default function SettingsRoute() {
       <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Extra date labels</Text>
       <Host matchContents colorScheme={dark?"dark":"light"} seedColor={c.primary}><Picker selectedValue={preferences.labelLanguage} onValueChange={value=>{if(value!=="english"&&value!=="kashmiri"&&value!=="dogri")return;try{setPreference("labelLanguage",value);}catch{setMessage("Could not save this setting.");}}}>{labelLanguages.map(language=><Picker.Item key={language.value} label={language.label} value={language.value} />)}</Picker></Host>
       {note("English headings stay visible. Optional Kashmiri or Dogri month and full-date labels work offline.")}
+      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Lunar dates under each date</Text>
+      <Host matchContents colorScheme={dark?"dark":"light"} seedColor={c.primary}><Picker selectedValue={preferences.lunarDates} onValueChange={value=>{if(value!=="off"&&value!=="hijri"&&value!=="kashmiri"&&value!=="both")return;try{setPreference("lunarDates",value);}catch{setMessage("Could not save this setting.");}}}>{([["both","Hijri + Kashmiri Pandit"],["hijri","Hijri"],["kashmiri","Kashmiri Pandit"],["off","Off"]] as const).map(([value,label])=><Picker.Item key={value} label={label} value={value} />)}</Picker></Host>
+      {note(`Today: ${hijriLabel(hijriDate(new Date(),preferences.hijriOffset))} · ${panchangLabel(kashmiriPanchang(new Date()))}. On the calendar, the Hijri day is on the left and the tithi on the right (S7 = Shukla Saptami, K3 = Krishna Tritiya, Pur = Purnima, Ama = Amavasya). Tap a date for full details.`)}
+      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Hijri date adjustment</Text>
+      <View style={{flexDirection:"row",flexWrap:"wrap",gap:8}}>{hijriOffsets.map(offset=><Pressable key={offset} accessibilityRole="button" accessibilityLabel={`Hijri adjustment ${offset} days`} accessibilityState={{selected:preferences.hijriOffset===offset}} onPress={()=>{try{setPreference("hijriOffset",offset);}catch{setMessage("Could not save this setting.");}}} style={{minHeight:44,minWidth:52,paddingHorizontal:14,alignItems:"center",justifyContent:"center",borderRadius:22,backgroundColor:preferences.hijriOffset===offset?c.primary:c.primarySoft}}><Text style={{color:preferences.hijriOffset===offset?c.onPrimary:c.primaryDark,fontSize:13}}>{offset>0?`+${offset}`:offset}</Text></Pressable>)}</View>
+      {note("Hijri dates are calculated and can differ by a day from local moon sighting; adjust if your mosque's date differs. Kashmiri Pandit tithis are calculated for sunrise in Srinagar and are approximate near tithi changes.")}
     </View>
     <View style={section}>
       {heading("Accessibility")}

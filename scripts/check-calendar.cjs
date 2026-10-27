@@ -35,7 +35,7 @@ async function main() {
   assert.equal(dogriSeasonLabel('sonth'),'ब्हार · Bhar');assert.equal(dogriSeasonLabel('grishm'),'सोहा · Soha');
   assert.equal(dogriSeasonLabel('harud'),'पत्तर-झाड़ · Pattar-Jhar');assert.equal(dogriSeasonLabel('wand'),'स्याल · Syal');assert.equal(dogriSeasonLabel('shishur'),'स्याल · Syal');assert.equal(dogriSeasonLabel('wahrath'),'बरसात / बरखा रुत्त · Barsat / Barkha Rutt');
   const {seasonalScenes,seasonalParticles,seasonMotionEnabled,normaliseSeasonalMotion,seasonFadeStops,seasonStrengthAt,seasonFadeMask}=load('src/utils/season-effects.ts');
-  for(const [id,kinds] of Object.entries({sonth:['petal','chinar'],grishm:['mote','sunglow'],wahrath:['mist','rain'],harud:['chinar'],wand:['mist','sparkle'],shishur:['snow','flake']})){
+  for(const [id,kinds] of Object.entries({sonth:['petal','chinar'],grishm:['mote','sunglow'],wahrath:['mist','rain'],harud:['chinar'],wand:['mist','sparkle'],shishur:['flake']})){
     const subtle=seasonalParticles(id),lively=seasonalParticles(id,'lively');
     assert.deepEqual([...new Set(subtle.map(p=>p.kind))].sort(),kinds.sort());
     const weather=id==='wahrath'||id==='shishur';

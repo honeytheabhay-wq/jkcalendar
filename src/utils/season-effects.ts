@@ -13,7 +13,7 @@ export const seasonalScenes:Record<SeasonId,Scene>={
   wahrath:{kind:"rain",effects:["mist","rain","rain","rain","mist","rain","rain","rain"],colour:"#6F8D9E",darkColour:"#C9DDE6"},
   harud:{kind:"chinar",effects:["chinar","chinar","chinar","chinar","chinar","chinar","chinar","chinar"],colour:"#BC723F",darkColour:"#EEC08C"},
   wand:{kind:"frost-glints",effects:["mist","sparkle","sparkle","sparkle","sparkle","mist","sparkle","sparkle"],colour:"#7FA6BC",darkColour:"#E6EEF5"},
-  shishur:{kind:"snow",effects:["snow","snow","flake","snow","snow","snow","snow","flake"],colour:"#7FAACB",darkColour:"#F4FAFF"},
+  shishur:{kind:"snowflakes",effects:["flake"],colour:"#7FAACB",darkColour:"#F4FAFF"},
 };
 
 // Rain and snow need more, faster pieces to read as weather; everything else stays sparse and slow.
@@ -34,12 +34,13 @@ export function seasonalParticles(id:SeasonId,level:SeasonalMotionLevel="subtle"
     if(kind==="sunglow"){width=260;height=260;x=52;y=-10;colour="#F2C766";duration=18000;opacity=.38;}
     if(kind==="mote"){width=7+(index%3)*3;height=width;y=35+(index*17)%60;duration=18000+(index%4)*2600;opacity=.6;floor=.55;if(index%3===2){colour="#E9C56E";}}
     if(kind==="mist"){width=200;height=80;x=left?-30:55;y=index%4<2?4:78;duration=30000;opacity=.38;colour=id==="wand"?"#D9CBB4":"#A9BFB3";darkColour=id==="wand"?"#E6D7BD":"#C2DECF";}
-    if(kind==="rain"){width=1.6;height=18+(index%3)*6;duration=1700+(index%4)*260;opacity=.48;floor=.5;}
+    if(kind==="rain"){width=6+(index%3)*1.5;height=width*1.35;duration=2600+(index%4)*420;opacity=.55;floor=.5;}
     if(kind==="sparkle"){width=14+(index%3)*5;height=width;y=8+(index*29)%80;duration=17000+(index%3)*2200;opacity=.6;floor=.5;if(index%3===1){colour="#C9A877";darkColour="#F3E2C2";}}
     if(kind==="snow"){width=4+(index%4)*2;height=width;duration=17000+(index%5)*2400;opacity=.58;floor=.55;if(index%3===1){colour="#9CC2DE";}}
-    if(kind==="flake"){width=20+(index%2)*6;height=width;duration=21000;opacity=.55;floor=.5;}
+    // Snowflakes: sizes from about 9 to 30 and fall times from about 15 to 28 s, so they never move in step.
+    if(kind==="flake"){width=[9,14,20,11,26,16,12,22][index%8];height=width;duration=17000+((index*7)%8)*2000;opacity=.6;floor=.55;if(index%3===1){colour="#9CC2DE";}}
     const scale=lively?1.35:1.15;
-    if(kind!=="rain"&&kind!=="sunglow"&&kind!=="mist"){width*=scale;height*=scale;}
+    if(kind!=="rain"&&kind!=="sunglow"&&kind!=="mist"&&kind!=="flake"){width*=scale;height*=scale;}
     // Rain falls in seconds, so its cycle is short; the "lively" speed-up is a gentler 0.85 for it.
     const speed=kind==="rain"?(lively?.85:1):(lively?.70:.9);
     return {kind,x,y,width,height,colour,darkColour,floor,phase:.08+((index*37+19)%100)/120,

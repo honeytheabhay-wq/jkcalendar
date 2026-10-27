@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, Stack } from "expo-router";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
@@ -10,9 +10,10 @@ import { scheduleOnRN } from "react-native-worklets";
 import { CalendarGrid } from "@/components/calendar-grid";
 import { SeasonalScreen } from "@/components/seasonal-screen";
 import { MonthJump } from "@/components/month-jump";
-import { holidayDateAppearance, todayDateColors, radii, shadows, spacing, type ThemeColors, useCalendarTheme, useSeason } from "@/theme";
+import { holidayDateAppearance, todayDateColors, radii, shadows, spacing, switchToLight, type ThemeColors, useCalendarTheme, useSeason } from "@/theme";
 import { monthLabel, toDateKey } from "@/utils/dates";
 import { useEvents } from "@/utils/events";
+import { setPreference } from "@/utils/preferences";
 import { holidayYearLoaded } from "@/utils/holiday-info";
 import { useToday } from "@/utils/today";
 import { useOrderStatus } from "@/utils/official-orders";
@@ -25,11 +26,15 @@ import { YearCalendar } from "./year-calendar";
 import { YearHolidayList } from "./year-holiday-list";
 
 const monthIndex = (date: Date) => date.getFullYear() * 12 + date.getMonth();
-const monthFromIndex = (index: number) => new Date(Math.floor(index / 12), index % 12, 1, 12);
+// Cached so each month page keeps the same Date object and its memoised grid can skip re-rendering.
+const monthDates = new Map<number, Date>();
+const monthFromIndex = (index: number) => { let date = monthDates.get(index); if (!date) { date = new Date(Math.floor(index / 12), index % 12, 1, 12); monthDates.set(index, date); } return date; };
 
 export function Home() {
   const { width } = useWindowDimensions();
-  const { colors, reduceMotion } = useCalendarTheme(), { setSeasonDateKey } = useSeason();
+  const { colors, reduceMotion, themeName } = useCalendarTheme(), { setSeasonDateKey } = useSeason();
+  // Dark mode is the Midnight Indigo palette; the moon/sun button beside Colours switches it.
+  const dark = themeName === "midnight-indigo";
   const reducedMotion = useReducedMotion() || reduceMotion;
   const styles = useMemo(() => createStyles(colors, width < 400), [colors, width < 400]);
   const [calendarView, setCalendarView] = useState<CalendarView>("monthly");
@@ -38,6 +43,8 @@ export function Home() {
   const [jumpOpen, setJumpOpen] = useState(false);
   // While the year view is zoomed, one finger pans the year instead of scrolling the page.
   const [yearZoomed, setYearZoomed] = useState(false);
+  const [yearOpened, setYearOpened] = useState(false);
+  if (calendarView === "yearly" && !yearOpened) setYearOpened(true);
   const today = useToday();
   const followToday = useRef(true);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -101,6 +108,14 @@ export function Home() {
     setViewMonth(new Date(today.getFullYear(), today.getMonth(), 1, 12));
   }
 
+  // Stable handlers for the memoised month pages and year view.
+  const latest = useRef({ selectDate, confirmDelete: (id: string, title: string) => confirmDelete(id, title) });
+  latest.current = { selectDate, confirmDelete: (id: string, title: string) => confirmDelete(id, title) };
+  const onGridSelect = useCallback((date: Date) => latest.current.selectDate(date), []);
+  const onGridDelete = useCallback((id: string, title: string) => latest.current.confirmDelete(id, title), []);
+  const onYearSelect = useCallback((date: Date) => { latest.current.selectDate(date); setCalendarView("monthly"); }, []);
+  const openJump = useCallback(() => setJumpOpen(true), []);
+
   function confirmDelete(id: string, title: string) {
     Alert.alert("Delete event?", title, [
       { text: "Cancel", style: "cancel" },
@@ -118,6 +133,7 @@ export function Home() {
 
   return (
     <SeasonalScreen>
+    <Stack.Screen options={{ headerRight: () => <Pressable accessibilityRole="button" accessibilityLabel={dark ? "Switch to light mode" : "Switch to dark mode"} hitSlop={8} onPress={() => { if (dark) switchToLight(); else setPreference("appearance", "dark"); }} style={styles.modeButton}><Text allowFontScaling={false} style={styles.modeText}>{dark ? "☀" : "☾"}</Text></Pressable> }} />
     <ScrollView scrollEnabled={!(calendarView === "yearly" && yearZoomed)} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
       <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleOne]} />
       <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleTwo]} />
@@ -135,8 +151,8 @@ export function Home() {
         <Text style={styles.orderBannerText}>A holiday date may have changed after moon sighting. Tap to review →</Text>
       </Pressable> : null}
 
-      {calendarView === "monthly" ? (
-        <>
+      {/* Both views stay built once opened, so switching between them only shows or hides one instead of rebuilding it. */}
+      <View style={[styles.viewPane, calendarView !== "monthly" && styles.hidden]}>
           <MonthHolidays viewMonth={viewMonth} onSelect={date => { selectDate(date); setDetailsDate(new Date(date)); }} />
           <GestureDetector gesture={swipe}>
           <View collapsable={false} style={styles.calendarCard}>
@@ -157,7 +173,7 @@ export function Home() {
                 {[centre - 1, centre, centre + 1].map(page => (
                   // Keyed by slot (page mod 3): the page that slides off one side is reused, off screen, for the new neighbour.
                   <View key={((page % 3) + 3) % 3} style={{ position: page === index ? "relative" : "absolute", top: 0, left: (page - base) * pageStride, width: contentWidth }}>
-                    <CalendarGrid viewMonth={monthFromIndex(page)} active={page === index} selectedDate={selectedDate} events={events} width={contentWidth} onSelect={selectDate} detailsDate={page === index ? detailsDate : null} onDeleteEvent={confirmDelete} />
+                    <CalendarGrid viewMonth={monthFromIndex(page)} active={page === index} selectedDate={selectedDate} events={events} width={contentWidth} onSelect={onGridSelect} detailsDate={page === index ? detailsDate : null} onDeleteEvent={onGridDelete} />
                   </View>
                 ))}
               </Animated.View>
@@ -171,10 +187,10 @@ export function Home() {
             </View>
           </View>
           </GestureDetector>
-        </>
-      ) : (
-        <YearCalendar year={viewMonth.getFullYear()} width={contentWidth} selectedDate={selectedDate} onJump={() => setJumpOpen(true)} onZoomChange={setYearZoomed} onSelect={(date) => { selectDate(date); setCalendarView("monthly"); }} />
-      )}
+      </View>
+      {yearOpened ? <View style={[styles.viewPane, calendarView !== "yearly" && styles.hidden]}>
+        <YearCalendar year={viewMonth.getFullYear()} width={contentWidth} selectedDate={selectedDate} onJump={openJump} onZoomChange={setYearZoomed} onSelect={onYearSelect} />
+      </View> : null}
 
       <YearHolidayList year={viewMonth.getFullYear()} />
       <MonthJump visible={jumpOpen} month={viewMonth} onClose={() => setJumpOpen(false)} onChoose={date => { setDetailsDate(null); followToday.current = false; setViewMonth(date); setSelectedDate(date); }} />
@@ -198,6 +214,10 @@ function createStyles(colors: ThemeColors, narrow: boolean) {
     orderBannerText: { color:colors.onPrimary, fontSize:12, fontWeight:"600" },
     colourButton: { minHeight:44, justifyContent:"center", paddingVertical:7 },
     utilityBubble: { minHeight:28, paddingHorizontal:10, paddingVertical:4, justifyContent:"center", borderRadius:radii.full, backgroundColor:colors.primarySoft },
+    viewPane: { width: "100%", alignItems: "center", gap: 10 },
+    hidden: { display: "none" },
+    modeButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: radii.full, backgroundColor: colors.primarySoft },
+    modeText: { color: colors.primaryDark, fontSize: 20, lineHeight: 24 },
     colourText: { color: colors.primaryDark, fontSize: 11, fontWeight: "700" },
     calendarCard: { width: "100%", maxWidth: 620, alignItems: "center", gap: 20, paddingHorizontal: 10, paddingVertical: 20, backgroundColor: colors.surface, borderRadius: radii.card, borderCurve: "continuous", boxShadow: shadows.card },
     monthHeader: { width: "100%", gap: 6, paddingHorizontal: spacing.xs },

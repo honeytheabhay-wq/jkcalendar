@@ -15,7 +15,7 @@ import { monthGrid, toDateKey } from "@/utils/dates";
 import type { CalendarEvent } from "@/utils/events";
 import { usePreferences } from "@/utils/preferences";
 import { regionalDateLabel } from "@/utils/regional-labels";
-import { hijriDate, hijriLabel, hijriShortLabel, kashmiriPanchang, panchangLabel, panchangShort } from "@/utils/regional-calendars";
+import { hijriDate, hijriLabel, hijriShortLabel, hindiLabel, hindiShort, kashmiriPanchang, panchangLabel, panchangShort } from "@/utils/regional-calendars";
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const noHolidays: string[] = [];
@@ -152,9 +152,12 @@ const DayBubble = memo(function DayBubble({
   );
 });
 
-export function CalendarGrid({ viewMonth, active = true, selectedDate, events, width, onSelect, detailsDate, onDeleteEvent }: Props) {
+// Memoised: the neighbouring month pages skip re-rendering (and recomputing their lunar labels) on unrelated updates.
+export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = true, selectedDate, events, width, onSelect, detailsDate, onDeleteEvent }: Props) {
   const {labelLanguage, lunarDates, hijriOffset}=usePreferences();
-  const showHijri = lunarDates === "hijri" || lunarDates === "both", showPanchang = lunarDates === "kashmiri" || lunarDates === "both";
+  const showHijri = lunarDates === "hijri" || lunarDates === "both" || lunarDates === "hijri-hindi";
+  // The right-hand label is the tithi, in Kashmiri Pandit (S7) or Hindi (शु7) form.
+  const tithiShort = lunarDates === "kashmiri" || lunarDates === "both" ? panchangShort : lunarDates === "hindi" || lunarDates === "hijri-hindi" ? hindiShort : null;
   const { colors, glassLevel, textScale, reduceTransparency, reduceMotion, highContrast } = useCalendarTheme();
   const reducedMotion = useReducedMotion() || reduceMotion;
   const { fontScale } = useWindowDimensions();
@@ -219,9 +222,9 @@ export function CalendarGrid({ viewMonth, active = true, selectedDate, events, w
               weekend={date.getDay() === 0 || date.getDay() === 6}
               hasEvent={eventDates.has(dateKey)}
               holidayNames={holidaysByDate.get(dateKey) ?? noHolidays}
-              regionalLabel={[regionalDateLabel(date,labelLanguage),hijriLabel(hijriDate(date,hijriOffset)),panchangLabel(kashmiriPanchang(date))].filter(Boolean).join(". ")}
+              regionalLabel={[regionalDateLabel(date,labelLanguage),hijriLabel(hijriDate(date,hijriOffset)),panchangLabel(kashmiriPanchang(date)),hindiLabel(kashmiriPanchang(date))].filter(Boolean).join(". ")}
               lunarLeft={showHijri ? hijriShortLabel(hijriDate(date,hijriOffset)) : ""}
-              lunarRight={showPanchang ? panchangShort(kashmiriPanchang(date)) : ""}
+              lunarRight={tithiShort ? tithiShort(kashmiriPanchang(date)) : ""}
               colors={colors}
               styles={styles}
               glassLevel={glassLevel}
@@ -236,7 +239,7 @@ export function CalendarGrid({ viewMonth, active = true, selectedDate, events, w
         })}
       </View>
       {popup ? <Pressable onHoverIn={hover.keepOpen} onHoverOut={hover.leave} onFocus={hover.keepOpen} onBlur={hover.leave} onLayout={event => setPopupHeight(event.nativeEvent.layout.height)} accessibilityLiveRegion="polite" onAccessibilityEscape={() => setPopup(null)} style={[styles.popupCard, { width: popupWidth, left: popupLeft, top: popupTop, maxHeight:popupMaxHeight }]}>
-        <View style={styles.popupHeader}><View style={{flex:1,gap:3}}><Text style={styles.popupDate}>{popup.date.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage!=="english"?<Text selectable style={[styles.popupScope,{writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr",textAlign:"left"}]}>{regionalDateLabel(popup.date,labelLanguage)}</Text>:null}<Text selectable style={styles.popupScope}>Hijri: {hijriLabel(hijriDate(popup.date,hijriOffset))} (approx.)</Text><Text selectable style={styles.popupScope}>Kashmiri Pandit: {panchangLabel(kashmiriPanchang(popup.date))}</Text></View><Pressable accessibilityLabel="Close date details" onPress={() => { hover.keepOpen(); setPopup(null); }} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
+        <View style={styles.popupHeader}><View style={{flex:1,gap:3}}><Text style={styles.popupDate}>{popup.date.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage!=="english"?<Text selectable style={[styles.popupScope,{writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr",textAlign:"left"}]}>{regionalDateLabel(popup.date,labelLanguage)}</Text>:null}<Text selectable style={styles.popupScope}>Hijri: {hijriLabel(hijriDate(popup.date,hijriOffset))} (approx.)</Text><Text selectable style={styles.popupScope}>Kashmiri Pandit: {panchangLabel(kashmiriPanchang(popup.date))}</Text><Text selectable style={styles.popupScope}>Hindi: {hindiLabel(kashmiriPanchang(popup.date))}</Text></View><Pressable accessibilityLabel="Close date details" onPress={() => { hover.keepOpen(); setPopup(null); }} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
         <ScrollView style={[styles.popupScroll,{maxHeight:Math.max(45,popupMaxHeight-78)}]} contentContainerStyle={{gap:8}} nestedScrollEnabled keyboardShouldPersistTaps="handled">
           {popupHolidays.length ? popupHolidays.map((holiday) => <Pressable accessibilityRole="button" onPress={() => { setDetail(holiday); setPopup(null); }} key={`${holiday.date}-${holiday.name}`} style={styles.popupHoliday}><Text style={styles.popupName}>{holiday.name}</Text><Text style={styles.popupScope}>{holiday.scope} · {holiday.kind}{holiday.subjectToMoon ? " · Subject to moon sighting" : ""}</Text><Text style={styles.popupScope}>Details & source ↗</Text></Pressable>) : <Text style={styles.popupScope}>{holidayYearLoaded(popup.date.getFullYear()) ? "No holiday listed for this date." : `Holiday schedule unavailable for ${popup.date.getFullYear()}.`}</Text>}
           {popupEvents.map(event=><View key={event.id} style={styles.popupEvent}>
@@ -249,7 +252,7 @@ export function CalendarGrid({ viewMonth, active = true, selectedDate, events, w
       <HolidayDetails holiday={detail} onClose={() => setDetail(null)} />
     </View>
   );
-}
+});
 
 // Blurred and inset box shadows are costly on Android and are redrawn while the season layer animates above the
 // grid, so Android bubbles get one light shadow; the gloss layers still give the glass look.

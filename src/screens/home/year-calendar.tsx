@@ -1,4 +1,4 @@
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, Text as Span, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -8,7 +8,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { holidays2026, type Holiday } from "@/data/holidays-2026";
 import { HolidayDetails } from "@/components/holiday-details";
 import { toDateKey } from "@/utils/dates";
-import { glassSettings, holidayDateAppearance, todayDateColors, radii, shadows, spacing, type ThemeColors, useCalendarTheme } from "@/theme";
+import { todayDateColors, radii, shadows, spacing, type ThemeColors, useCalendarTheme } from "@/theme";
 import { useToday } from "@/utils/today";
 import { usePreferences } from "@/utils/preferences";
 import { regionalDateLabel } from "@/utils/regional-labels";
@@ -27,54 +27,65 @@ type MonthProps = {
   // Only the month that holds the selected date or today gets the key, so other months skip re-rendering.
   selectedKey: string;
   todayKey: string;
-  bubbleColour: string;
   styles: Styles;
+  charRatio: number;
   onSelect: (date: Date) => void;
   onPreview: (date: Date) => void;
 };
-const monthPadding = 6, monthBorder = 1.5, rowHeight = 20;
+const monthPadding = 6, monthBorder = 1.5;
+let measuredCharRatio: number | null = null;
+const pad = (day: number) => (day < 10 ? `\u2007${day}` : String(day));
 
-// Each date is a single Text (it draws its own bubble) and one Pressable per month works out the tapped date from the
-// touch position. A Pressable, bubble View and Text per date came to ~1,250 views for the year, a ~1.5 s freeze.
-const MiniMonth = memo(function MiniMonth({ year, monthIndex, monthWidth, selectedKey, todayKey, bubbleColour, styles, onSelect, onPreview }: MonthProps) {
+// Each week is one Text in a monospaced font with a span per date, and one Pressable per month works out the tapped
+// date from the touch position. A view per date came to 500+ native views for the year: a ~1.4 s freeze on opening.
+const MiniMonth = memo(function MiniMonth({ year, monthIndex, monthWidth, selectedKey, todayKey, styles, onSelect, onPreview, charRatio }: MonthProps) {
   const first = new Date(year, monthIndex, 1, 12);
   const lead = (first.getDay() + 6) % 7, days = new Date(year, monthIndex + 1, 0).getDate();
-  const cell = (monthWidth - monthPadding * 2 - monthBorder * 2) / 7 - 0.01;
-  const bubble = Math.min(18, cell - 2), side = (cell - bubble) / 2, vertical = (rowHeight - bubble) / 2;
+  // 20 characters per row: seven 2-digit dates and six spaces. The monospace width differs between phones, so the
+  // first month measures it (charRatio = character width / font size) and every month sizes its text to fit.
+  const inner = monthWidth - monthPadding * 2 - monthBorder * 2;
+  // 4% spare: glyph advances round to whole pixels, which made a full row ~1 pt wider than calculated.
+  const fontSize = Math.floor(Math.min(11, (inner * 0.96) / 20 / charRatio) * 10) / 10, charWidth = fontSize * charRatio, lineHeight = Math.round(fontSize * 1.75);
   const dateAt = (x: number, y: number) => {
-    const day = Math.floor(y / rowHeight) * 7 + Math.floor(x / cell) - lead + 1;
+    const day = Math.floor(y / lineHeight) * 7 + Math.min(6, Math.floor(x / (charWidth * 3))) - lead + 1;
     return day >= 1 && day <= days ? new Date(year, monthIndex, day, 12) : null;
   };
   const keyPrefix = `${year}-${String(monthIndex + 1).padStart(2, "0")}-`;
+  const weeks = useMemo(() => {
+    const rows: { day: number; key: string }[][] = [];
+    for (let cell = 0; cell < lead + days; cell++) {
+      if (cell % 7 === 0) rows.push([]);
+      const day = cell - lead + 1;
+      rows[rows.length - 1].push({ day, key: day >= 1 ? `${keyPrefix}${String(day).padStart(2, "0")}` : "" });
+    }
+    return rows;
+  }, [year, monthIndex]);
+  const text = { fontSize, lineHeight };
   return (
     <View style={[styles.monthCard, { width: monthWidth }]}>
-      <Pressable accessibilityRole="button" style={{ minHeight: 40, justifyContent: "center" }} accessibilityLabel={`Open ${months[monthIndex]} ${year}`} onPress={() => onSelect(first)}><Text style={styles.monthName}>{months[monthIndex]} ↗</Text></Pressable>
-      <View style={styles.miniGrid}>
-        {weekDays.map((day, index) => <Text allowFontScaling={false} key={`${day}-${index}`} style={[styles.weekDay, { width: cell }]}>{bubble < 14 ? day[0] : day.slice(0, 2)}</Text>)}
-      </View>
-      <Pressable accessible={false} onPress={event => { const date = dateAt(event.nativeEvent.locationX, event.nativeEvent.locationY); onSelect(date ?? first); }} onLongPress={event => { const date = dateAt(event.nativeEvent.locationX, event.nativeEvent.locationY); if (date) onPreview(date); }}>
-        <View pointerEvents="none" style={styles.miniGrid}>
-          {Array.from({ length: days }, (_, index) => {
-            const day = index + 1, dateKey = `${keyPrefix}${String(day).padStart(2, "0")}`;
-            const selected = dateKey === selectedKey, holiday = holidayDates.has(dateKey), today = dateKey === todayKey;
-            return (
-              <Text
-                key={day}
-                allowFontScaling={false}
-                style={[styles.dayText, { width: bubble, height: bubble, lineHeight: bubble - 2, fontSize: Math.min(9, bubble * 0.55), marginLeft: side + (index === 0 ? lead * cell : 0), marginRight: side, marginVertical: vertical, backgroundColor: bubbleColour }, selected && styles.selectedBubble, holiday && styles.holidayBubble, selected && holiday && styles.selectedHoliday, today && styles.todayBubble, today && !holiday && styles.todayFill]}
-              >
-                {day}
-              </Text>
-            );
-          })}
+      <Pressable accessibilityRole="button" style={{ minHeight: 36, justifyContent: "center" }} accessibilityLabel={`Open ${months[monthIndex]} ${year}`} onPress={() => onSelect(first)}><Text style={styles.monthName}>{months[monthIndex]} ↗</Text></Pressable>
+      <Text allowFontScaling={false} numberOfLines={1} style={[styles.weekRow, styles.weekDay, text]}>{weekDays.map(day => day.slice(0, 2)).join(" ")}</Text>
+      <Pressable accessible={false} onPress={event => onSelect(dateAt(event.nativeEvent.locationX, event.nativeEvent.locationY) ?? first)} onLongPress={event => { const date = dateAt(event.nativeEvent.locationX, event.nativeEvent.locationY); if (date) onPreview(date); }}>
+        <View pointerEvents="none">
+          {weeks.map((week, row) => (
+            <Text key={row} allowFontScaling={false} numberOfLines={1} style={[styles.weekRow, text]}>
+              {week.map(({ day, key }, column) => {
+                const gap = column ? " " : "";
+                if (day < 1) return gap + "\u2007\u2007";
+                const holiday = holidayDates.has(key), selected = key === selectedKey, today = key === todayKey;
+                // Plain Text for the nested spans: AppText would give each span its own font size.
+                return [gap, <Span key={key} style={[holiday && styles.holidayDay, today && styles.todayDay, selected && styles.selectedDay]}>{pad(day)}</Span>];
+              })}
+            </Text>
+          ))}
         </View>
       </Pressable>
     </View>
   );
 });
 
-export function YearCalendar({ year, width, selectedDate, onSelect, onJump, onZoomChange }: { year: number; width: number; selectedDate: Date; onSelect: (date: Date) => void; onJump: () => void; onZoomChange?: (zoomed: boolean) => void }) {
-  const { colors, glassLevel, reduceTransparency } = useCalendarTheme();
+export const YearCalendar = memo(function YearCalendar({ year, width, selectedDate, onSelect, onJump, onZoomChange }: { year: number; width: number; selectedDate: Date; onSelect: (date: Date) => void; onJump: () => void; onZoomChange?: (zoomed: boolean) => void }) {
+  const { colors } = useCalendarTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const todayKey = toDateKey(useToday());
   const selectedKey = toDateKey(selectedDate);
@@ -82,6 +93,9 @@ export function YearCalendar({ year, width, selectedDate, onSelect, onJump, onZo
   const [previewDate, setPreviewDate] = useState<Date | null>(null);
   const [detail, setDetail] = useState<Holiday | null>(null);
   const [zoomPercent, setZoomPercent] = useState(100);
+  // Months render once the character width is known, so they are laid out only once.
+  const [charRatio, setCharRatio] = useState(measuredCharRatio);
+  const measure = useCallback((ratio: number) => { if (ratio > 0.4 && ratio < 1) { measuredCharRatio = ratio; setCharRatio(ratio); } }, []);
   useEffect(() => { setPreviewDate(null); }, [year]);
   // Press and hold a date for its details; a tap opens it in the month view.
   const preview = useCallback((date: Date) => setPreviewDate(date), []);
@@ -95,7 +109,6 @@ export function YearCalendar({ year, width, selectedDate, onSelect, onJump, onZo
   // Narrow phones get two months per row so the dates stay readable; pinch zoom covers the rest.
   const columns = gridWidth >= 330 ? 3 : 2;
   const monthWidth = Math.floor((gridWidth - gap * (columns - 1)) / columns);
-  const bubbleColour = `${colors.bubble}${reduceTransparency ? "FF" : glassSettings[glassLevel].alpha}`;
 
   // Pinch zoom scales the year as one picture on the UI thread (no re-layout); one finger pans while zoomed.
   const scale = useSharedValue(1), x = useSharedValue(0), y = useSharedValue(0);
@@ -160,9 +173,11 @@ export function YearCalendar({ year, width, selectedDate, onSelect, onJump, onZo
       </View>
       {!holidayYearLoaded(year) ? <Text style={styles.warning}>Holiday schedule unavailable for {year}.</Text> : null}
       <GestureDetector gesture={gesture}>
-        <View collapsable={false} style={styles.viewport} onLayout={event => { size.value = { width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height }; if (Math.abs(event.nativeEvent.layout.width - gridWidth) > 1) setGridWidth(event.nativeEvent.layout.width); }}>
+        <View collapsable={false} style={styles.viewport} onLayout={event => { if (event.nativeEvent.layout.width > 0) size.value = { width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height }; if (event.nativeEvent.layout.width > 0 && Math.abs(event.nativeEvent.layout.width - gridWidth) > 1) setGridWidth(event.nativeEvent.layout.width); }}>
+          {/* Measures this phone's monospace character width once, off screen and unconstrained. */}
+          {charRatio ? null : <View pointerEvents="none" style={styles.measure}><Text allowFontScaling={false} onTextLayout={event => { const line = event.nativeEvent.lines[0]; if (line) measure(line.width / 20 / 10); }} style={[styles.weekRow, { fontSize: 10 }]}>{"00 00 00 00 00 00 00"}</Text></View>}
           <Animated.View style={[styles.yearGrid, { width: gridWidth, gap }, zoomStyle]}>
-            {months.map((monthName, monthIndex) => (
+            {charRatio ? months.map((monthName, monthIndex) => (
               <MiniMonth
                 key={monthName}
                 year={year}
@@ -170,16 +185,16 @@ export function YearCalendar({ year, width, selectedDate, onSelect, onJump, onZo
                 monthWidth={monthWidth}
                 selectedKey={selectedDate.getFullYear() === year && selectedDate.getMonth() === monthIndex ? selectedKey : ""}
                 todayKey={todayKey.startsWith(`${year}-${String(monthIndex + 1).padStart(2, "0")}`) ? todayKey : ""}
-                bubbleColour={bubbleColour}
                 styles={styles}
                 onSelect={select}
                 onPreview={preview}
+                charRatio={charRatio}
               />
-            ))}
+            )) : null}
           </Animated.View>
         </View>
       </GestureDetector>
-      <View style={styles.legend}><View style={[styles.dot, { ...holidayDateAppearance(colors), borderRadius: 2 }]} /><Text style={styles.legendText}>Holiday</Text><View style={[styles.dot, { backgroundColor: todayDateColors.fill, borderColor: todayDateColors.ring, borderWidth: 1.5 }]} /><Text style={styles.legendText}>Today</Text><View style={[styles.dot, { backgroundColor: colors.primary }]} /><Text style={styles.legendText}>Selected</Text></View>
+      <View style={styles.legend}><View style={[styles.dot, { backgroundColor: `${colors.holiday}55`, borderRadius: 2 }]} /><Text style={styles.legendText}>Holiday</Text><View style={[styles.dot, { backgroundColor: todayDateColors.fill, borderColor: todayDateColors.ring, borderWidth: 1.5 }]} /><Text style={styles.legendText}>Today</Text><View style={[styles.dot, { backgroundColor: colors.primary }]} /><Text style={styles.legendText}>Selected</Text></View>
       {previewDate ? <Pressable onAccessibilityEscape={() => setPreviewDate(null)} accessibilityLiveRegion="polite" style={styles.datePopup}>
         <View style={styles.popupHeader}><View style={{ flex: 1, gap: 3 }}><Text style={styles.popupDate}>{previewDate.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage !== "english" ? <Text selectable style={[styles.popupHoliday, { writingDirection: labelLanguage === "kashmiri" ? "rtl" : "ltr", textAlign: "left" }]}>{regionalDateLabel(previewDate, labelLanguage)}</Text> : null}</View><Pressable accessibilityLabel="Close date details" onPress={() => setPreviewDate(null)} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
         {previewHolidays.length ? previewHolidays.map((holiday) => <Pressable onPress={() => { setDetail(holiday); setPreviewDate(null); }} key={`${holiday.date}-${holiday.name}`}><Text style={styles.popupHoliday}>{holiday.name} · {holiday.scope} · Details & source ↗</Text></Pressable>) : <Text style={styles.popupHoliday}>{holidayYearLoaded(year) ? "No holiday listed for this date." : `Holiday schedule unavailable for ${year}.`}</Text>}
@@ -187,7 +202,7 @@ export function YearCalendar({ year, width, selectedDate, onSelect, onJump, onZo
       <HolidayDetails holiday={detail} onClose={() => setDetail(null)} />
     </View>
   );
-}
+});
 
 // Twelve blurred month shadows add to every frame drawn while scrolling on Android, so they go without there.
 const lightShadows = Platform.OS === "android";
@@ -208,13 +223,13 @@ function createStyles(colors: ThemeColors) {
     monthCard: { padding: monthPadding, borderRadius: 13, backgroundColor: colors.background, borderColor: colors.line, borderWidth: monthBorder, boxShadow: lightShadows ? undefined : `0 5px 12px ${colors.primarySoft}` },
     monthName: { color: colors.ink, fontWeight: "800", fontSize: 11, marginBottom: 5 },
     miniGrid: { flexDirection: "row", flexWrap: "wrap" },
-    weekDay: { color: colors.muted, textAlign: "center", fontWeight: "800", fontSize: 6.5, marginBottom: 2 },
-    dayText: { color: colors.ink, textAlign: "center", fontWeight: "700", fontVariant: ["tabular-nums"], borderRadius: 5, borderColor: `${colors.surface}DD`, borderWidth: 1, overflow: "hidden" },
-    holidayBubble: { ...holidayDateAppearance(colors), borderWidth: 1.5, color: colors.ink },
-    selectedBubble: { backgroundColor: colors.primary, borderColor: colors.primaryDark, color: colors.onPrimary },
-    selectedHoliday: { borderColor: colors.primaryDark },
-    todayBubble: { borderColor: todayDateColors.ring, borderWidth: 1.5 },
-    todayFill: { backgroundColor: todayDateColors.fill, color: todayDateColors.ink },
+    measure: { position: "absolute", left: 0, top: 0, width: 1000, opacity: 0 },
+    // One weight throughout: bold monospace is wider on some phones and would no longer fit the measured width.
+    weekRow: { fontFamily: "monospace", color: colors.ink },
+    weekDay: { color: colors.muted },
+    holidayDay: { color: colors.holiday, backgroundColor: `${colors.holiday}2E` },
+    todayDay: { color: todayDateColors.ink, backgroundColor: todayDateColors.fill },
+    selectedDay: { color: colors.onPrimary, backgroundColor: colors.primary },
     legend: { flexDirection: "row", alignItems: "center", gap: 5 },
     dot: { width: 7, height: 7, borderRadius: radii.full, marginLeft: 5 },
     legendText: { color: colors.muted, fontSize: 10, fontWeight: "600" },

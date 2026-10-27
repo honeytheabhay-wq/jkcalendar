@@ -102,6 +102,20 @@ export function panchangShort(p: Panchang) {
   return p.navreh ? "Navreh" : p.tithi === 15 ? "Pur" : p.tithi === 30 ? "Ama" : `${p.paksha === "Shukla" ? "S" : "K"}${p.paksha === "Shukla" ? p.tithi : p.tithi - 15}`;
 }
 
+// Hindi (Vikram Samvat) panchang: the same purnimanta months and sunrise tithi as above, named in Hindi. The Vikram
+// Samvat year turns on the same day as the Saptarishi year (Chaitra Shukla Pratipada) and runs 3019 years behind it.
+const hindiMonths = ["चैत्र", "वैशाख", "ज्येष्ठ", "आषाढ़", "श्रावण", "भाद्रपद", "आश्विन", "कार्तिक", "मार्गशीर्ष", "पौष", "माघ", "फाल्गुन"];
+const hindiTithis = ["प्रतिपदा", "द्वितीया", "तृतीया", "चतुर्थी", "पंचमी", "षष्ठी", "सप्तमी", "अष्टमी", "नवमी", "दशमी", "एकादशी", "द्वादशी", "त्रयोदशी", "चतुर्दशी"];
+export const vikramSamvat = (p: Panchang) => p.saptarishiYear - 3019;
+export function hindiLabel(p: Panchang) {
+  const tithi = p.tithi === 15 ? "पूर्णिमा" : p.tithi === 30 ? "अमावस्या" : hindiTithis[(p.paksha === "Shukla" ? p.tithi : p.tithi - 15) - 1];
+  return `${p.adhik ? "अधिक " : ""}${hindiMonths[p.month]} ${p.paksha === "Shukla" ? "शुक्ल" : "कृष्ण"} ${tithi} · विक्रम संवत ${vikramSamvat(p)}`;
+}
+// Compact form for the month grid: शु7 = Shukla Saptami, कृ3 = Krishna Tritiya, पू = Purnima, अमा = Amavasya.
+export function hindiShort(p: Panchang) {
+  return p.tithi === 15 ? "पू" : p.tithi === 30 ? "अमा" : `${p.paksha === "Shukla" ? "शु" : "कृ"}${p.paksha === "Shukla" ? p.tithi : p.tithi - 15}`;
+}
+
 export const hijriMonths = ["Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Jumada al-Ula", "Jumada al-Thani", "Rajab", "Sha'ban", "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah"];
 export type HijriDate = { day: number; month: number; year: number; monthName: string };
 const islamicEpoch = 1948439.5;

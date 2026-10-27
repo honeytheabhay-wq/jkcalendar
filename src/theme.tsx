@@ -148,6 +148,12 @@ function subscribe(listener: () => void) {
   };
 }
 
+// Switches out of dark mode: Light appearance, and away from Midnight Indigo if it was the manual colour.
+export function switchToLight() {
+  setPreference("appearance", "light");
+  if (themeCache === "midnight-indigo") { themeCache = "dal-lake"; localStorage.setItem(storageKey, themeCache); listeners.forEach((listener) => listener()); }
+}
+
 function setTheme(themeName: ManualThemeName) {
   themeCache = themeName;
   localStorage.setItem(storageKey, themeName);

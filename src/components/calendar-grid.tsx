@@ -26,6 +26,8 @@ holidays2026.forEach((holiday) => {
 
 type Props = {
   viewMonth: Date;
+  // False for the neighbouring months kept mounted off screen.
+  active?: boolean;
   selectedDate: Date;
   events: CalendarEvent[];
   width: number;
@@ -150,7 +152,7 @@ const DayBubble = memo(function DayBubble({
   );
 });
 
-export function CalendarGrid({ viewMonth, selectedDate, events, width, onSelect, detailsDate, onDeleteEvent }: Props) {
+export function CalendarGrid({ viewMonth, active = true, selectedDate, events, width, onSelect, detailsDate, onDeleteEvent }: Props) {
   const {labelLanguage, lunarDates, hijriOffset}=usePreferences();
   const showHijri = lunarDates === "hijri" || lunarDates === "both", showPanchang = lunarDates === "kashmiri" || lunarDates === "both";
   const { colors, glassLevel, textScale, reduceTransparency, reduceMotion, highContrast } = useCalendarTheme();
@@ -162,7 +164,7 @@ export function CalendarGrid({ viewMonth, selectedDate, events, width, onSelect,
   const [detail, setDetail] = useState<Holiday | null>(null);
   const [popupHeight, setPopupHeight] = useState(200);
   const hover = useHoverDetails(() => setPopup(current => current?.pinned ? current : null));
-  useEffect(() => { hover.keepOpen(); setPopup(null); }, [viewMonth.getFullYear(), viewMonth.getMonth()]);
+  useEffect(() => { hover.keepOpen(); setPopup(null); }, [viewMonth.getFullYear(), viewMonth.getMonth(), active]);
   useEffect(() => {
     if (!detailsDate) return;
     const index=monthGrid(new Date(detailsDate.getFullYear(),detailsDate.getMonth(),1,12)).findIndex(date=>toDateKey(date)===toDateKey(detailsDate));

@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -23,6 +23,9 @@ import { ThemePicker } from "./theme-picker";
 import { type CalendarView, ViewTabs } from "./view-tabs";
 import { YearCalendar } from "./year-calendar";
 import { YearHolidayList } from "./year-holiday-list";
+
+const monthIndex = (date: Date) => date.getFullYear() * 12 + date.getMonth();
+const monthFromIndex = (index: number) => new Date(Math.floor(index / 12), index % 12, 1, 12);
 
 export function Home() {
   const { width } = useWindowDimensions();
@@ -54,31 +57,39 @@ export function Home() {
     if (process.env.EXPO_OS === "ios") Haptics.selectionAsync();
   }
 
-  // The month slides out on the UI thread, React swaps the month, then the new month slides in from the other side.
-  const slide = useSharedValue(0);
-  const slideIn = useRef(0);
-  const slideDistance = contentWidth * 0.3;
+  // The previous, current and next months stay mounted side by side and the strip slides on the UI thread. A swipe
+  // only moves pages that already exist; the new neighbour mounts off screen afterwards. Re-rendering the visible
+  // month instead updated ~127 texts at once on Android, a ~100 ms freeze in the middle of every swipe.
+  const index = monthIndex(viewMonth);
+  const [base] = useState(index);
+  const pageStride = contentWidth + 24;
+  const rest = -(index - base) * pageStride;
+  // The title and month details update first; the off-screen neighbour follows in a later, lower-priority render.
+  const deferredIndex = useDeferredValue(index);
+  const centre = Math.abs(index - deferredIndex) > 1 ? index : deferredIndex;
+  const strip = useSharedValue(rest);
+  const restPosition = useSharedValue(rest);
+  const viewMonthRef = useRef(viewMonth);
+  viewMonthRef.current = viewMonth;
+  useEffect(() => { restPosition.value = rest; strip.value = rest; }, [rest]);
   const changeMonth = useCallback((offset: number) => {
+    const current = viewMonthRef.current, nextMonth = new Date(current.getFullYear(), current.getMonth() + offset, 1, 12);
+    // Outside 1900–2100 the strip slides back to the current month.
+    if (nextMonth.getFullYear() < 1900 || nextMonth.getFullYear() > 2100) { restPosition.value = strip.value = -(monthIndex(current) - base) * pageStride; return; }
     setDetailsDate(null);
     followToday.current = false;
-    slideIn.current = offset;
-    setViewMonth((current) => { const nextMonth = new Date(current.getFullYear(), current.getMonth() + offset, 1, 12); return nextMonth.getFullYear() >= 1900 && nextMonth.getFullYear() <= 2100 ? nextMonth : current; });
-  }, []);
-  useEffect(() => {
-    const direction = slideIn.current;
-    slideIn.current = 0;
-    if (!direction || reducedMotion) { slide.value = 0; return; }
-    slide.value = direction * slideDistance;
-    slide.value = withTiming(0, { duration: 220 });
-  }, [viewMonth]);
+    setViewMonth(nextMonth);
+  }, [base, pageStride]);
+  const settle = useCallback((offset: number) => {
+    "worklet";
+    const target = restPosition.value - offset * pageStride;
+    strip.value = withTiming(target, { duration: 200 }, finished => { if (finished) { restPosition.value = target; scheduleOnRN(changeMonth, offset); } });
+  }, [pageStride, changeMonth]);
   function stepMonth(offset: number) {
     if (reducedMotion) { changeMonth(offset); return; }
-    slide.value = withTiming(-offset * slideDistance, { duration: 110 }, finished => { if (finished) scheduleOnRN(changeMonth, offset); });
+    settle(offset);
   }
-  const slideStyle = useAnimatedStyle(() => ({
-    opacity: 1 - Math.min(Math.abs(slide.value) / slideDistance, 1) * 0.7,
-    transform: [{ translateX: slide.value }],
-  }));
+  const stripStyle = useAnimatedStyle(() => ({ transform: [{ translateX: strip.value }] }));
 
   function goToToday() {
     setDetailsDate(null);
@@ -95,13 +106,13 @@ export function Home() {
     ]);
   }
   const swipe = useMemo(() => Gesture.Pan().activeOffsetX([-14, 14]).failOffsetY([-14, 14])
-    .onUpdate(event => { if (!reducedMotion) slide.value = Math.max(-slideDistance, Math.min(slideDistance, event.translationX * 0.5)); })
+    .onUpdate(event => { if (!reducedMotion) strip.value = restPosition.value + Math.max(-pageStride, Math.min(pageStride, event.translationX)); })
     .onEnd(event => {
       const offset = event.translationX < -50 || event.velocityX < -600 ? 1 : event.translationX > 50 || event.velocityX > 600 ? -1 : 0;
-      if (!offset) { slide.value = withTiming(0, { duration: 160 }); return; }
+      if (!offset) { strip.value = withTiming(restPosition.value, { duration: 160 }); return; }
       if (reducedMotion) { scheduleOnRN(changeMonth, offset); return; }
-      slide.value = withTiming(-offset * slideDistance, { duration: 90 }, finished => { if (finished) scheduleOnRN(changeMonth, offset); });
-    }), [reducedMotion, slideDistance, changeMonth]);
+      settle(offset);
+    }), [reducedMotion, pageStride, changeMonth, settle]);
 
   return (
     <SeasonalScreen>
@@ -139,9 +150,16 @@ export function Home() {
               <MonthCaption month={viewMonth} />
             </View>
 
-            <Animated.View style={slideStyle}>
-              <CalendarGrid viewMonth={viewMonth} selectedDate={selectedDate} events={events} width={contentWidth} onSelect={selectDate} detailsDate={detailsDate} onDeleteEvent={confirmDelete} />
-            </Animated.View>
+            <View style={[styles.pager, { width: contentWidth }]}>
+              <Animated.View style={[{ width: contentWidth }, stripStyle]}>
+                {[centre - 1, centre, centre + 1].map(page => (
+                  // Keyed by slot (page mod 3): the page that slides off one side is reused, off screen, for the new neighbour.
+                  <View key={((page % 3) + 3) % 3} style={{ position: page === index ? "relative" : "absolute", top: 0, left: (page - base) * pageStride, width: contentWidth }}>
+                    <CalendarGrid viewMonth={monthFromIndex(page)} active={page === index} selectedDate={selectedDate} events={events} width={contentWidth} onSelect={selectDate} detailsDate={page === index ? detailsDate : null} onDeleteEvent={confirmDelete} />
+                  </View>
+                ))}
+              </Animated.View>
+            </View>
 
             <View style={styles.legend}>
               <View style={styles.legendItem}><View style={styles.todaySwatch} /><Text style={styles.legendText}>Today</Text></View>
@@ -189,6 +207,8 @@ function createStyles(colors: ThemeColors, narrow: boolean) {
     roundButtonText: { color: colors.primaryDark, fontSize: 24, lineHeight: 25 },
     todayButton: { minHeight: narrow ? 36 : 40, justifyContent: "center", paddingHorizontal: narrow ? 10 : 12, borderRadius: radii.full, backgroundColor: colors.today },
     todayButtonText: { color: colors.todayInk, fontSize: 12, fontWeight: "800" },
+    // Clips the neighbouring months; the padding leaves room for the selected bubble's lift.
+    pager: { overflow: "hidden", paddingVertical: 6, marginVertical: -6 },
     legend: { width: "100%", flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10, paddingHorizontal: spacing.xs },
     legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
     legendDot: { width: 7, height: 7, borderRadius: radii.full },

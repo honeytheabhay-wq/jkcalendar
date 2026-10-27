@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Pressable, ScrollView, Share, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 
@@ -31,7 +31,8 @@ function HolidayRow({ holiday, past, colors, onOpen, compact = false }: { holida
   );
 }
 
-export function YearHolidayList({ year }: { year: number }) {
+// Memoised: swiping months within a year does not redraw the year list.
+export const YearHolidayList = memo(function YearHolidayList({ year }: { year: number }) {
   const { colors, textScale } = useCalendarTheme();
   const { fontScale }=useWindowDimensions();
   const styles = createStyles(colors);
@@ -79,7 +80,7 @@ export function YearHolidayList({ year }: { year: number }) {
       <HolidayDetails holiday={detail} onClose={() => setDetail(null)} />
     </View>
   );
-}
+});
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({

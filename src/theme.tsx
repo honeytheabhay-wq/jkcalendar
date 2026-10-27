@@ -163,8 +163,6 @@ type ThemeContextValue = {
   themeName: ThemeName;
   colors: ThemeColors;
   setThemeName: (themeName: ManualThemeName) => void;
-  season: Season;
-  setSeasonDateKey: (dateKey: string) => void;
   glassLevel: GlassLevel;
   setGlassLevel: (level: GlassLevel) => void;
   textScale: number;
@@ -174,6 +172,10 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
+// The season lives in its own context: swiping into a new season then redraws only the season caption and effects,
+// not every themed component (unless automatic seasonal colours really change the palette).
+type SeasonContextValue = { season: Season; setSeasonDateKey: (dateKey: string) => void };
+const SeasonContext = createContext<SeasonContextValue | null>(null);
 
 export function CalendarThemeProvider({ children }: PropsWithChildren) {
   const manualThemeName = useSyncExternalStore(subscribe, () => themeCache, () => themeCache);
@@ -193,15 +195,22 @@ export function CalendarThemeProvider({ children }: PropsWithChildren) {
     () => {
       const base = themeName in seasonalThemes ? seasonalThemes[themeName as SeasonId].colors : themes[themeName as ManualThemeName].colors;
       const contrast = themeName === "midnight-indigo" ? { ink: "#FFFFFF", muted: "#DBE7FA", line: "#B5CBE5", primary: "#BEDDFF", primaryDark: "#DAEBFF", onPrimary: "#0B1525", holiday: "#FFD9A0" } : { ink: "#102D40", muted: "#344F60", line: "#415E70", primary: "#174C66", primaryDark: "#123D53", onPrimary: "#FFFFFF", holiday: "#843A14" };
-      return { themeName, season, setSeasonDateKey, colors: highContrast ? { ...base, ...contrast } : base, setThemeName: setTheme, glassLevel: reduceTransparency ? "subtle" as const : glassLevel, setGlassLevel, textScale, reduceMotion, reduceTransparency, highContrast };
+      return { themeName, colors: highContrast ? { ...base, ...contrast } : base, setThemeName: setTheme, glassLevel: reduceTransparency ? "subtle" as const : glassLevel, setGlassLevel, textScale, reduceMotion, reduceTransparency, highContrast };
     },
-    [themeName, season, glassLevel, textScale, reduceMotion, reduceTransparency, highContrast],
+    [themeName, glassLevel, textScale, reduceMotion, reduceTransparency, highContrast],
   );
-  return <ThemeContext value={value}>{children}</ThemeContext>;
+  const seasonValue = useMemo(() => ({ season, setSeasonDateKey }), [season]);
+  return <SeasonContext value={seasonValue}><ThemeContext value={value}>{children}</ThemeContext></SeasonContext>;
 }
 
 export function useCalendarTheme() {
   const value = use(ThemeContext);
   if (!value) throw new Error("useCalendarTheme must be used inside CalendarThemeProvider");
+  return value;
+}
+
+export function useSeason() {
+  const value = use(SeasonContext);
+  if (!value) throw new Error("useSeason must be used inside CalendarThemeProvider");
   return value;
 }

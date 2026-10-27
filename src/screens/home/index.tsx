@@ -10,7 +10,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { CalendarGrid } from "@/components/calendar-grid";
 import { SeasonalScreen } from "@/components/seasonal-screen";
 import { MonthJump } from "@/components/month-jump";
-import { holidayDateAppearance, todayDateColors, radii, shadows, spacing, type ThemeColors, useCalendarTheme } from "@/theme";
+import { holidayDateAppearance, todayDateColors, radii, shadows, spacing, type ThemeColors, useCalendarTheme, useSeason } from "@/theme";
 import { monthLabel, toDateKey } from "@/utils/dates";
 import { useEvents } from "@/utils/events";
 import { holidayYearLoaded } from "@/utils/holiday-info";
@@ -26,7 +26,7 @@ import { YearHolidayList } from "./year-holiday-list";
 
 export function Home() {
   const { width } = useWindowDimensions();
-  const { colors, setSeasonDateKey, reduceMotion } = useCalendarTheme();
+  const { colors, reduceMotion } = useCalendarTheme(), { setSeasonDateKey } = useSeason();
   const reducedMotion = useReducedMotion() || reduceMotion;
   const styles = useMemo(() => createStyles(colors, width < 400), [colors, width < 400]);
   const [calendarView, setCalendarView] = useState<CalendarView>("monthly");

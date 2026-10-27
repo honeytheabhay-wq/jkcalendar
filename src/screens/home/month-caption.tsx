@@ -1,6 +1,6 @@
 import { Image, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
-import { useCalendarTheme } from "@/theme";
+import { useCalendarTheme, useSeason } from "@/theme";
 import { usePreferences } from "@/utils/preferences";
 import { regionalMonthLabel } from "@/utils/regional-labels";
 import { dogriSeasonLabel } from "@/utils/seasons";
@@ -16,7 +16,7 @@ const icons = {
 };
 
 export function MonthCaption({month}:{month:Date}) {
-  const {season,colors}=useCalendarTheme();
+  const {colors}=useCalendarTheme(),{season}=useSeason();
   const {labelLanguage}=usePreferences();
   const localMonth=regionalMonthLabel(month,labelLanguage);
   const dogri=dogriSeasonLabel(season.id);

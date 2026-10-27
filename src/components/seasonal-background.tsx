@@ -2,7 +2,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppState, Image, StyleSheet, View } from "react-native";
 import Animated, { type CSSAnimationKeyframes } from "react-native-reanimated";
-import { useCalendarTheme } from "@/theme";
+import { useCalendarTheme, useSeason } from "@/theme";
 import { usePreferences } from "@/utils/preferences";
 import { seasonalParticles, seasonStrengthAt, seasonMotionEnabled } from "@/utils/season-effects";
 import { useSeasonOverlayOpen } from "@/utils/season-motion-state";
@@ -60,7 +60,7 @@ function frame(p:Particle,progress:number,width:number,height:number) {
 const falls=new Set(["petal","chinar","snow","flake","rain"]);
 
 export function SeasonalBackground({modal=false}:{modal?:boolean}) {
-  const {season,themeName,reduceMotion,highContrast}=useCalendarTheme();
+  const {themeName,reduceMotion,highContrast}=useCalendarTheme(),{season}=useSeason();
   const {seasonalMotion}=usePreferences();
   const obscured=useSeasonOverlayOpen();
   const [size,setSize]=useState({width:0,height:0}),[active,setActive]=useState(AppState.currentState==="active"),[focused,setFocused]=useState(false);

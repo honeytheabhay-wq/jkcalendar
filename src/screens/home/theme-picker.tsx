@@ -3,11 +3,11 @@ import { Host, Switch } from "@expo/ui";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 
-import { radii, spacing, themes, type ThemeColors, type ManualThemeName, useCalendarTheme } from "@/theme";
+import { radii, spacing, themes, type ThemeColors, type ManualThemeName, useCalendarTheme, useSeason } from "@/theme";
 import { setPreference, usePreferences } from "@/utils/preferences";
 
 export function ThemePicker() {
-  const { themeName, colors, setThemeName, glassLevel, setGlassLevel, season } = useCalendarTheme();
+  const { themeName, colors, setThemeName, glassLevel, setGlassLevel } = useCalendarTheme(), { season } = useSeason();
   const preferences=usePreferences();
   const styles = createStyles(colors);
 

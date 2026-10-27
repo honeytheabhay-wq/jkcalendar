@@ -205,8 +205,9 @@ export function CalendarGrid({ viewMonth, selectedDate, events, width, onSelect,
         {dates.map((date, index) => {
           const dateKey = toDateKey(date);
           return (
+            // Keyed by grid position, so a month change updates the 42 bubbles instead of rebuilding them.
             <DayBubble
-              key={dateKey}
+              key={index}
               date={date}
               index={index}
               cellSize={cellSize}

@@ -5,9 +5,11 @@ import type { WidgetData } from "@/utils/widget-data";
 
 const TodayWidget = (props: WidgetData) => {
   "widget";
-  return <VStack alignment="leading" spacing={6} modifiers={[padding({all:12}),containerBackground(props.background,"widget"),widgetURL("jkcalendar://")]}>
-    <Text modifiers={[font({size:11,weight:"semibold"}),foregroundStyle(props.accent)]}>J&K CALENDAR</Text>
+  return <VStack alignment="leading" spacing={3} modifiers={[padding({all:12}),containerBackground(props.background,"widget"),widgetURL("jkcalendar://")]}>
     <Text modifiers={[font({size:20,weight:"bold"}),foregroundStyle(props.ink)]}>{props.expired ? "Refresh calendar" : props.dateLabel}</Text>
+    <Text modifiers={[font({size:10}),foregroundStyle(props.accent),lineLimit(1)]}>{props.expired ? "" : props.hijri}</Text>
+    <Text modifiers={[font({size:10}),foregroundStyle(props.accent),lineLimit(1)]}>{props.expired ? "" : props.pandit}</Text>
+    <Text modifiers={[font({size:10}),foregroundStyle(props.accent),lineLimit(1)]}>{props.expired ? "" : props.hindi}</Text>
     <Text modifiers={[font({size:13,weight:"semibold"}),foregroundStyle(props.ink),lineLimit(1)]}>{props.expired ? "Open app to refresh" : props.holiday}</Text>
     <Text modifiers={[font({size:10}),foregroundStyle(props.ink),lineLimit(1)]}>{props.expired ? "" : props.holidayNote}</Text>
     <Text modifiers={[font({size:13}),foregroundStyle(props.ink),lineLimit(1)]}>{props.eventTitle}</Text>

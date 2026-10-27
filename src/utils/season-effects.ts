@@ -4,8 +4,9 @@ export type SeasonalMotionLevel = "off" | "subtle" | "lively";
 export type SeasonalEffect = "petal" | "chinar" | "mote" | "sunglow" | "mist" | "rain" | "sparkle" | "snow" | "flake";
 type Scene = {kind:string;effects:SeasonalEffect[];colour:string;darkColour:string};
 export const seasonalMotionLevels = [{value:"off",label:"Off"},{value:"subtle",label:"Subtle"},{value:"lively",label:"Lively"}] as const;
+// Subtle is the default: Lively keeps more pieces moving, so the screen redraws more and uses more battery.
 export function normaliseSeasonalMotion(value:unknown,legacyEnabled:unknown=true):SeasonalMotionLevel {
-  return value==="off"||value==="subtle"||value==="lively"?value:legacyEnabled===false?"off":"lively";
+  return value==="off"||value==="subtle"||value==="lively"?value:legacyEnabled===false?"off":"subtle";
 }
 export const seasonalScenes:Record<SeasonId,Scene>={
   sonth:{kind:"petals",effects:["petal","petal","chinar","petal","petal","petal","chinar","petal"],colour:"#CB7E9B",darkColour:"#F4C0D3"},

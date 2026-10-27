@@ -31,7 +31,7 @@ export default function SettingsRoute() {
   // Orders that were new when Settings opened stay highlighted on this visit; the home banner is cleared.
   const [newOrders]=useState(()=>orders.unseen);
   useEffect(()=>{markOrdersSeen();},[]);
-  const snapshot=full?widgetData(events,new Date(),c):null;
+  const snapshot=full?widgetData(events,new Date(),c,preferences.hijriOffset):null;
   async function run(task:()=>Promise<unknown>) { if(busy)return;setBusy(true);setMessage("");try{const result=await task();if(typeof result==="string")setMessage(result);}catch(e){setMessage(e instanceof Error?e.message:"Could not finish. Please try again.");}finally{setBusy(false);} }
   const heading=(text:string)=><Text accessibilityRole="header" style={{color:c.ink,fontSize:18,fontWeight:"800"}}>{text}</Text>;
   const note=(text:string)=><Text selectable style={{color:c.muted,fontSize:12,lineHeight:18}}>{text}</Text>;
@@ -109,7 +109,7 @@ export default function SettingsRoute() {
     </View>
     <View style={section}>
       {heading("Home-screen widget")}
-      <View style={{padding:16,gap:5,borderRadius:18,backgroundColor:c.background}}><Text style={{color:c.primaryDark,fontSize:11,fontWeight:"800"}}>J&K CALENDAR</Text><Text style={{color:c.ink,fontSize:24,fontWeight:"800"}}>{snapshot.dateLabel}</Text><Text style={{color:c.ink,fontSize:14,fontWeight:"700"}}>{snapshot.holiday}</Text>{note(snapshot.holidayNote)}<Text style={{color:c.ink,fontSize:15}}>{snapshot.eventTitle}</Text>{note(snapshot.eventWhen)}<Text style={{color:c.primaryDark,fontSize:13}}>＋ Add event</Text></View>
+      <View style={{padding:16,gap:5,borderRadius:18,backgroundColor:c.background}}><Text style={{color:c.primaryDark,fontSize:11,fontWeight:"800"}}>J&K CALENDAR</Text><Text style={{color:c.ink,fontSize:24,fontWeight:"800"}}>{snapshot.dateLabel}</Text>{note(`${snapshot.hijri}\n${snapshot.pandit}\n${snapshot.hindi}`)}<Text style={{color:c.ink,fontSize:14,fontWeight:"700"}}>{snapshot.holiday}</Text>{note(snapshot.holidayNote)}<Text style={{color:c.ink,fontSize:15}}>{snapshot.eventTitle}</Text>{note(snapshot.eventWhen)}<Text style={{color:c.primaryDark,fontSize:13}}>＋ Add event</Text></View>
       {button("Refresh home-screen widget",()=>syncWidgets(getEvents(),c))}
       {note("After installing the native app, long-press your home screen and add J&K Calendar from Widgets. Tap its date to open the app, or + to add an event. Widgets show your next event title.")}
       {note("Android refreshes are requested every 30 minutes and when events change. iPhone uses a timeline of up to 14 days; open the app periodically to refill it. System widget refresh timing can vary. Widgets are unavailable in Expo Go.")}

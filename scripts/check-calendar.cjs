@@ -75,7 +75,7 @@ async function main() {
     assert(lively.every(v=>v.phase>0&&v.phase<1&&v.opacity<=.68));
     assert.equal(seasonalParticles(id,'off').length,0);
   }
-  assert.equal(normaliseSeasonalMotion(undefined,false),'off');assert.equal(normaliseSeasonalMotion(undefined,true),'lively');assert.equal(normaliseSeasonalMotion('lively',false),'lively');assert.equal(normaliseSeasonalMotion('invalid'),'lively');assert.equal(normaliseSeasonalMotion('subtle'),'subtle');
+  assert.equal(normaliseSeasonalMotion(undefined,false),'off');assert.equal(normaliseSeasonalMotion(undefined,true),'subtle');assert.equal(normaliseSeasonalMotion('lively',false),'lively');assert.equal(normaliseSeasonalMotion('invalid'),'subtle');assert.equal(normaliseSeasonalMotion('subtle'),'subtle');
   assert.equal(seasonFadeStops[0].at,0);assert.equal(seasonFadeStops.at(-1).at,100);
   assert(seasonFadeStops.every((s,i)=>!i||s.strength>seasonFadeStops[i-1].strength));
   assert.equal(seasonStrengthAt(.5,.5),.1);assert.equal(seasonStrengthAt(0,0),1);assert.equal(seasonStrengthAt(1,1),1);assert(seasonStrengthAt(.1,.5)>seasonStrengthAt(.4,.5));assert(Math.abs(seasonStrengthAt(.1,.2)-seasonStrengthAt(.9,.8))<1e-12);
@@ -136,6 +136,7 @@ async function main() {
   const post=new URLSearchParams(largerPageRequest(html));assert.equal(post.get('__VIEWSTATE'),'a&b');assert.equal(post.get('ctl00$conPage$ddlPageSize'),'100');
   const {widgetData,widgetTimeline}=load('src/utils/widget-data.ts');
   const w=widgetData([{id:'w',title:'Review',date:'2026-10-26',time:'14:00'}],reference);assert.equal(w.holiday,'Accession Day');assert.equal(w.eventTitle,'Review');
+  assert.match(w.hijri,/AH$/);assert.match(w.pandit,/Saptarishi 5102$/);assert.match(w.hindi,/विक्रम संवत 2083$/);
   const timeline=widgetTimeline([{id:'w',title:'Review',date:'2026-10-26',time:'14:00'}],reference);assert(timeline.length<=64);assert(timeline.at(-1).props.expired);assert(timeline.some(t=>t.date.getHours()===14&&t.date.getMinutes()===1));
   assert.equal(widgetData([],new Date(2027,0,1)).holiday,'Schedule unavailable beyond 2026');
   assert(holidaySource(holidays2026.find(h => h.name === 'Urs Sheikh Noor-ud-Din Sahib')).url.endsWith('O45638'));
@@ -195,7 +196,7 @@ async function main() {
   cache.delete(path.resolve(root,'src/utils/preferences.ts')); // reminders loaded it earlier; read the new storage
   const {getPreferences,setPreference}=load('src/utils/preferences.ts');
   assert.equal(getPreferences().labelLanguage,'english');assert.equal(getPreferences().reduceMotion,true);assert.equal(getPreferences().autoSeasonColours,false);
-  assert.equal(getPreferences().seasonalMotion,'lively');setPreference('seasonalMotion','off');assert.equal(getPreferences().seasonalMotion,'off');assert.equal(JSON.parse(memory.get('jk-calendar-preferences-v1')).seasonalMotion,'off');setPreference('seasonalMotion','lively');assert.equal(JSON.parse(memory.get('jk-calendar-preferences-v1')).seasonalMotion,'lively');
+  assert.equal(getPreferences().seasonalMotion,'subtle');setPreference('seasonalMotion','off');assert.equal(getPreferences().seasonalMotion,'off');assert.equal(JSON.parse(memory.get('jk-calendar-preferences-v1')).seasonalMotion,'off');setPreference('seasonalMotion','lively');assert.equal(JSON.parse(memory.get('jk-calendar-preferences-v1')).seasonalMotion,'lively');
   setPreference('labelLanguage','dogri');setPreference('autoSeasonColours',true);
   assert.equal(getPreferences().labelLanguage,'dogri');assert.equal(JSON.parse(memory.get('jk-calendar-preferences-v1')).reduceMotion,true);
   let offline=false;

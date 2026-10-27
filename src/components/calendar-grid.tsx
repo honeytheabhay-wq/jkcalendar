@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
 import Animated, { cubicBezier, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
@@ -236,6 +236,9 @@ export function CalendarGrid({ viewMonth, selectedDate, events, width, onSelect,
   );
 }
 
+// Blurred and inset box shadows are costly on Android and are redrawn while the season layer animates above the
+// grid, so Android bubbles get one light shadow; the gloss layers still give the glass look.
+const lightShadows = Platform.OS === "android";
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     calendar: { gap: 16, position: "relative", zIndex: 5 },
@@ -243,19 +246,19 @@ function createStyles(colors: ThemeColors) {
     dateGrid: { flexDirection: "row", flexWrap: "wrap", paddingTop: 2 },
     weekDay: { height: 32, color: colors.onPrimary, fontSize: 11, lineHeight: 30, fontWeight: "800", letterSpacing: 0.45, textAlign: "center", textAlignVertical: "center", backgroundColor: colors.primary, borderColor: colors.primaryDark, borderWidth: 1, borderRadius: radii.full, overflow: "hidden" },
     weekendLabel: { color: colors.onPrimary, backgroundColor: colors.holiday, borderColor: colors.holiday },
-    dayBubble: { overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: `${colors.bubble}99`, borderColor: `${colors.surface}E6`, borderWidth: 1.5, borderCurve: "continuous", boxShadow: `inset 0 1px 1px ${colors.surface}CC, inset 0 -1px 2px ${colors.primary}25, 0 1px 0 ${colors.primary}35, 0 8px 16px ${colors.primary}25` },
+    dayBubble: { overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: `${colors.bubble}99`, borderColor: `${colors.surface}E6`, borderWidth: 1.5, borderCurve: "continuous", boxShadow: lightShadows ? `0 2px 3px ${colors.primary}26` : `inset 0 1px 1px ${colors.surface}CC, inset 0 -1px 2px ${colors.primary}25, 0 1px 0 ${colors.primary}35, 0 8px 16px ${colors.primary}25` },
     gloss: { position: "absolute", width: "94%", height: "42%", top: 1, left: "3%", borderRadius: 10, backgroundColor: `${colors.surface}66` },
     glassShine: { position: "absolute", width: "23%", height: "150%", top: "-25%", left: "12%", transform: [{ rotate: "28deg" }], backgroundColor: `${colors.surface}28` },
     glassGlowOne: { position: "absolute", width: 150, height: 150, borderRadius: 999, backgroundColor: colors.primarySoft, opacity: 0.75, top: 10, left: 30 },
     glassGlowTwo: { position: "absolute", width: 130, height: 130, borderRadius: 999, backgroundColor: colors.weekend, opacity: 0.75, bottom: 15, right: 20 },
     weekendBubble: { backgroundColor: `${colors.weekend}BB` },
     mutedBubble: { backgroundColor: colors.background, borderColor: colors.line, borderWidth: 1, boxShadow: "none" },
-    todayBubble: { backgroundColor: colors.today, borderColor: colors.todayInk, borderWidth: 2, boxShadow: `0 0 0 3px ${colors.surface}, 0 0 0 5px ${colors.today}` },
-    selectedBubble: { backgroundColor: `${colors.primary}E6`, borderColor: `${colors.surface}CC`, borderWidth: 1.5, boxShadow: `inset 0 1px 2px ${colors.surface}88, 0 2px 0 ${colors.primary}66, 0 10px 18px ${colors.primary}35` },
+    todayBubble: { backgroundColor: colors.today, borderColor: colors.todayInk, borderWidth: 2, boxShadow: lightShadows ? undefined : `0 0 0 3px ${colors.surface}, 0 0 0 5px ${colors.today}` },
+    selectedBubble: { backgroundColor: `${colors.primary}E6`, borderColor: `${colors.surface}CC`, borderWidth: 1.5, boxShadow: lightShadows ? `0 4px 6px ${colors.primary}40` : `inset 0 1px 2px ${colors.surface}88, 0 2px 0 ${colors.primary}66, 0 10px 18px ${colors.primary}35` },
     dayNumber: { color: colors.ink, fontSize: 17, marginBottom: 3, fontWeight: "700", fontVariant: ["tabular-nums"] },
     mutedNumber: { color: colors.muted },
     todayNumber: { color: todayDateColors.ink, fontWeight: "800" },
-    todayOutline: { borderColor: todayDateColors.ring, borderWidth: 2.5, boxShadow: `inset 0 0 0 1px ${todayDateColors.ring}55, 0 0 0 2px ${todayDateColors.ring}25, 0 7px 15px ${todayDateColors.ring}22` },
+    todayOutline: { borderColor: todayDateColors.ring, borderWidth: 2.5, boxShadow: lightShadows ? `0 3px 5px ${todayDateColors.ring}30` : `inset 0 0 0 1px ${todayDateColors.ring}55, 0 0 0 2px ${todayDateColors.ring}25, 0 7px 15px ${todayDateColors.ring}22` },
     todayHalo: { position: "absolute", inset: 2, borderColor: todayDateColors.ring, borderWidth: 1.5, opacity: 0.7 },
     selectedNumber: { color: colors.onPrimary, fontWeight: "800" },
     markers: { position: "absolute", bottom: 4, flexDirection: "row", gap: 3 },

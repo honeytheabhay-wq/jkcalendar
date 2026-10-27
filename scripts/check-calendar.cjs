@@ -33,14 +33,16 @@ async function main() {
   const {seasons,seasonOn,seasonDateForMonth,dogriSeasonLabel}=load('src/utils/seasons.ts');
   for(const [id,script] of Object.entries({harud:'ہارُد',wand:'وَنٛدٕ',sonth:'سونٛتھ',grishm:'گرٛیشِم',wahrath:'ؤہراتھ',shishur:'شِشُر'}))assert.equal(seasons[id].script,script);
   assert.equal(dogriSeasonLabel('sonth'),'ब्हार · Bhar');assert.equal(dogriSeasonLabel('grishm'),'सोहा · Soha');
-  assert.equal(dogriSeasonLabel('harud'),'पत्तर-झाड़ · Pattar-Jhar');assert.equal(dogriSeasonLabel('wand'),'स्याल · Syal');assert.equal(dogriSeasonLabel('shishur'),'स्याल · Syal');assert.equal(dogriSeasonLabel('wahrath'),'');
+  assert.equal(dogriSeasonLabel('harud'),'पत्तर-झाड़ · Pattar-Jhar');assert.equal(dogriSeasonLabel('wand'),'स्याल · Syal');assert.equal(dogriSeasonLabel('shishur'),'स्याल · Syal');assert.equal(dogriSeasonLabel('wahrath'),'बरसात / बरखा रुत्त · Barsat / Barkha Rutt');
   const {seasonalScenes,seasonalParticles,seasonMotionEnabled,normaliseSeasonalMotion,seasonFadeStops,seasonStrengthAt,seasonFadeMask}=load('src/utils/season-effects.ts');
-  for(const [id,kinds] of Object.entries({sonth:['petal','chinar'],grishm:['ripple','sunlight'],wahrath:['mist','raindrop'],harud:['chinar'],wand:['mist','frost'],shishur:['snow']})){
+  for(const [id,kinds] of Object.entries({sonth:['petal','chinar'],grishm:['mote','sunglow'],wahrath:['mist','rain'],harud:['chinar'],wand:['mist','sparkle'],shishur:['snow','flake']})){
     const subtle=seasonalParticles(id),lively=seasonalParticles(id,'lively');
     assert.deepEqual([...new Set(subtle.map(p=>p.kind))].sort(),kinds.sort());
-    assert(subtle.length>=6&&subtle.length<=8);assert(lively.length>subtle.length&&lively.length<=12);
+    const weather=id==='wahrath'||id==='shishur';
+    assert(subtle.length>=6&&subtle.length<=(weather?14:8));assert(lively.length>subtle.length&&lively.length<=(weather?20:12));
     assert(lively[0].opacity>subtle[0].opacity);assert(lively[0].duration<subtle[0].duration);
-    assert(subtle.every(v=>v.phase>0&&v.phase<1&&v.duration>=15000&&v.width>0&&v.height>0));
+    // Rain is the one effect allowed to move quickly; everything else keeps a calm cycle of 15 s or more.
+    assert(subtle.every(v=>v.phase>0&&v.phase<1&&v.duration>=(v.kind==='rain'?1200:15000)&&v.width>0&&v.height>0));
     assert(lively.every(v=>v.phase>0&&v.phase<1&&v.opacity<=.68));
     assert.equal(seasonalParticles(id,'off').length,0);
   }

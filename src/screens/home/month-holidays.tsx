@@ -21,11 +21,21 @@ export function MonthHolidays({ viewMonth, onSelect }: { viewMonth: Date; onSele
     return dates;
   }, new Map<string, Holiday[]>()), ([date, items]) => ({date, items}));
   const cardWidth=Math.min(320,200*Math.max(1,textScale*fontScale));
+  // Shown on the collapsed card, so the count and the next holiday are visible without opening it.
+  const loaded=holidayYearLoaded(viewMonth.getFullYear());
+  const next=[...groups].reverse().find(group=>group.date>=todayKey);
+  const summary=!loaded?"Schedule unavailable":!holidays.length?"No holidays":next?`Next: ${next.items[0].name}${next.items.length>1?` +${next.items.length-1}`:""} · ${Number(next.date.slice(-2))} ${fromDateKey(next.date).toLocaleDateString("en-IN",{month:"short"})}`:"All past";
 
   return (
     <View style={styles.card}>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setExpanded((current) => !current)} style={({ pressed }) => [styles.headingRow, pressed && styles.pressed]}>
-        <Text style={styles.heading}>Holidays this month</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Holidays this month: ${loaded?holidays.length:"unavailable"}. ${summary}`} accessibilityState={{ expanded }} onPress={() => setExpanded((current) => !current)} style={({ pressed }) => [styles.headingRow, pressed && styles.pressed]}>
+        <View style={styles.headingText}>
+          <View style={styles.titleRow}>
+            <Text style={styles.heading}>Holidays this month</Text>
+            {loaded?<View style={[styles.countBadge,!holidays.length&&styles.countBadgeEmpty]}><Text allowFontScaling={false} style={[styles.countText,!holidays.length&&styles.countTextEmpty]}>{holidays.length}</Text></View>:null}
+          </View>
+          {!expanded?<Text numberOfLines={1} style={styles.summary}>{summary}</Text>:null}
+        </View>
         <Text style={styles.chevron}>{expanded ? "⌃" : "⌄"}</Text>
       </Pressable>
       {expanded && holidays.length ? (
@@ -58,7 +68,14 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     card: { width: "100%", maxWidth: 620, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: colors.surface, borderRadius: 20, borderCurve: "continuous", boxShadow: shadows.card },
     headingRow: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-    heading: { flex: 1, color: colors.ink, fontSize: 14, fontWeight: "800" },
+    headingText: { flex: 1, gap: 2, paddingVertical: 6 },
+    titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    heading: { flexShrink: 1, color: colors.ink, fontSize: 14, fontWeight: "800" },
+    countBadge: { minWidth: 24, height: 24, paddingHorizontal: 7, alignItems: "center", justifyContent: "center", borderRadius: radii.full, backgroundColor: colors.holiday },
+    countBadgeEmpty: { backgroundColor: colors.line },
+    countText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800", fontVariant: ["tabular-nums"] },
+    countTextEmpty: { color: colors.muted },
+    summary: { color: colors.muted, fontSize: 11, fontWeight: "600" },
     list: { gap: 8, paddingTop: 4, paddingBottom:8 },
     item: { minHeight: 66, flexDirection: "row", alignItems: "center", gap: 8, padding: 9, backgroundColor: colors.weekend, borderRadius: radii.lg, borderCurve: "continuous", borderColor: colors.line, borderWidth: 1 },
     pastItem: { backgroundColor:colors.background },

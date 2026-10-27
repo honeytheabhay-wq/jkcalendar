@@ -1,7 +1,7 @@
 import type { SeasonId } from "./seasons";
 
 export type SeasonalMotionLevel = "off" | "subtle" | "lively";
-export type SeasonalEffect = "petal" | "chinar" | "ripple" | "sunlight" | "mist" | "raindrop" | "frost" | "snow";
+export type SeasonalEffect = "petal" | "chinar" | "mote" | "sunglow" | "mist" | "rain" | "sparkle" | "snow" | "flake";
 type Scene = {kind:string;effects:SeasonalEffect[];colour:string;darkColour:string};
 export const seasonalMotionLevels = [{value:"off",label:"Off"},{value:"subtle",label:"Subtle"},{value:"lively",label:"Lively"}] as const;
 export function normaliseSeasonalMotion(value:unknown,legacyEnabled:unknown=true):SeasonalMotionLevel {
@@ -9,40 +9,42 @@ export function normaliseSeasonalMotion(value:unknown,legacyEnabled:unknown=true
 }
 export const seasonalScenes:Record<SeasonId,Scene>={
   sonth:{kind:"petals",effects:["petal","petal","chinar","petal","petal","petal","chinar","petal"],colour:"#CB7E9B",darkColour:"#F4C0D3"},
-  grishm:{kind:"lake",effects:["ripple","ripple","sunlight","sunlight","ripple","ripple"],colour:"#6BABC8",darkColour:"#B6DCF1"},
-  wahrath:{kind:"mist-rain",effects:["mist","raindrop","raindrop","mist","raindrop","raindrop"],colour:"#86A996",darkColour:"#C2DECF"},
+  grishm:{kind:"summer-light",effects:["sunglow","mote","mote","mote","mote","mote","mote","mote"],colour:"#D8A13A",darkColour:"#F3DB9F"},
+  wahrath:{kind:"rain",effects:["mist","rain","rain","rain","mist","rain","rain","rain"],colour:"#6F8D9E",darkColour:"#C9DDE6"},
   harud:{kind:"chinar",effects:["chinar","chinar","chinar","chinar","chinar","chinar","chinar","chinar"],colour:"#BC723F",darkColour:"#EEC08C"},
-  wand:{kind:"frost-haze",effects:["mist","frost","frost","mist","frost","frost"],colour:"#CCBCA6",darkColour:"#E6D7BD"},
-  shishur:{kind:"snow",effects:["snow","snow","snow","snow","snow","snow","snow","snow"],colour:"#82B2D2",darkColour:"#E6F3FF"},
+  wand:{kind:"frost-glints",effects:["mist","sparkle","sparkle","sparkle","sparkle","mist","sparkle","sparkle"],colour:"#7FA6BC",darkColour:"#E6EEF5"},
+  shishur:{kind:"snow",effects:["snow","snow","flake","snow","snow","snow","snow","flake"],colour:"#7FAACB",darkColour:"#F4FAFF"},
 };
 
-const positions=[2,88,12,76,26,64,40,54,6,82,32,69];
+// Rain and snow need more, faster pieces to read as weather; everything else stays sparse and slow.
+const counts:Record<SeasonId,{subtle:number;lively:number}>={sonth:{subtle:8,lively:12},grishm:{subtle:8,lively:12},wahrath:{subtle:12,lively:18},harud:{subtle:8,lively:12},wand:{subtle:8,lively:12},shishur:{subtle:14,lively:20}};
+const positions=[2,88,12,76,26,64,40,54,6,82,32,69,18,94,47,59,9,72,36,85];
 export function seasonalParticles(id:SeasonId,level:SeasonalMotionLevel="subtle") {
   if(level==="off")return [];
   const scene=seasonalScenes[id],lively=level==="lively";
-  const fallingScene=id==="sonth"||id==="harud"||id==="shishur";
-  const count=fallingScene?(lively?12:8):(lively?8:6);
+  const count=counts[id][lively?"lively":"subtle"];
   return Array.from({length:count},(_,index)=>{
     const kind=scene.effects[index%scene.effects.length];
     const left=index%2===0;
-    let width=18+(index%3)*3,height=width,x=positions[index],y=0;
-    let colour=scene.colour,darkColour=scene.darkColour,duration=24000+(index%3)*3200,opacity=.34;
+    let width=18+(index%3)*3,height=width,x=positions[index%positions.length],y=0;
+    let colour=scene.colour,darkColour=scene.darkColour,duration=24000+(index%3)*3200,opacity=.34,floor=0;
     if(kind==="petal"){width=12+(index%3)*2;height=width*1.4;}
     if(kind==="chinar"&&id==="harud"&&index%3===1){colour="#D09949";darkColour="#F3D39D";}
     if(kind==="chinar"&&id==="sonth"){colour="#7FA57D";darkColour="#BCDEB1";width=18;height=18;}
-    if(kind==="ripple"){width=86;height=28;x=left?0:74;duration=19000;opacity=.45;}
-    if(kind==="sunlight"){width=130;height=32;x=left?-8:67;colour="#E2B85E";darkColour="#F3DB9F";duration=25000;opacity=.42;}
-    if(kind==="mist"){width=170;height=74;x=left?-22:62;duration=29000;opacity=.42;}
-    if(kind==="raindrop"){colour="#7E95A2";darkColour="#D9E5E9";width=2.5;height=14+(index%3)*4;duration=17000+(index%2)*3500;opacity=.5;}
-    if(kind==="frost"){width=52;height=52;x=left?0:84;y=index<3?2:85;colour="#8EADBE";darkColour="#DDEEF7";duration=26000;opacity=.32;}
-    if(kind==="snow"){if(index%3===1){colour="#ABD0E7";darkColour="#FAFDFF";}width=index===5?18:8+(index%3)*3;height=width;duration=26000+(index%4)*3100;opacity=.42;}
-    const scale=lively?1.55:1.25;width*=scale;height*=scale;
-    if(kind==="mist")y=8+(index*23)%78;
-    if(kind==="frost")y=index%4<2?2:84;
-    if(kind==="ripple"||kind==="sunlight")y=64+(index%4)*6; // bottom area, but fully on screen
-    return {kind,x,y,width,height,colour,darkColour,phase:.08+((index*37+19)%100)/120,
-      duration:Math.round(duration*(lively?.70:.9)),opacity:Math.min(.68,opacity*(lively?1.8:1.35)),
-      drift:(left?1:-1)*(kind==="petal"?28:kind==="chinar"?20:12)};
+    if(kind==="sunglow"){width=260;height=260;x=52;y=-10;colour="#F2C766";duration=18000;opacity=.38;}
+    if(kind==="mote"){width=7+(index%3)*3;height=width;y=35+(index*17)%60;duration=18000+(index%4)*2600;opacity=.6;floor=.55;if(index%3===2){colour="#E9C56E";}}
+    if(kind==="mist"){width=200;height=80;x=left?-30:55;y=index%4<2?4:78;duration=30000;opacity=.38;colour=id==="wand"?"#D9CBB4":"#A9BFB3";darkColour=id==="wand"?"#E6D7BD":"#C2DECF";}
+    if(kind==="rain"){width=1.6;height=18+(index%3)*6;duration=1700+(index%4)*260;opacity=.48;floor=.5;}
+    if(kind==="sparkle"){width=14+(index%3)*5;height=width;y=8+(index*29)%80;duration=17000+(index%3)*2200;opacity=.6;floor=.5;if(index%3===1){colour="#C9A877";darkColour="#F3E2C2";}}
+    if(kind==="snow"){width=4+(index%4)*2;height=width;duration=17000+(index%5)*2400;opacity=.58;floor=.55;if(index%3===1){colour="#9CC2DE";}}
+    if(kind==="flake"){width=20+(index%2)*6;height=width;duration=21000;opacity=.55;floor=.5;}
+    const scale=lively?1.35:1.15;
+    if(kind!=="rain"&&kind!=="sunglow"&&kind!=="mist"){width*=scale;height*=scale;}
+    // Rain falls in seconds, so its cycle is short; the "lively" speed-up is a gentler 0.85 for it.
+    const speed=kind==="rain"?(lively?.85:1):(lively?.70:.9);
+    return {kind,x,y,width,height,colour,darkColour,floor,phase:.08+((index*37+19)%100)/120,
+      duration:Math.round(duration*speed),opacity:Math.min(.68,opacity*(lively?1.25:1.1)),
+      drift:(left?1:-1)*(kind==="petal"?28:kind==="chinar"?20:kind==="rain"?-60:kind==="mote"?14:12)};
   });
 }
 

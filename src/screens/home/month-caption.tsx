@@ -28,7 +28,7 @@ export function MonthCaption({month}:{month:Date}) {
     </View>
     <View style={{flexDirection:"row",alignItems:"center",gap:6,height:24,paddingLeft:22}}>
       <Text accessibilityLanguage="ks" numberOfLines={1} style={{color:colors.primaryDark,fontSize:15,lineHeight:22}}>{season.script}</Text>
-      {dogri?<Text accessibilityLabel={`Dogri: ${dogri}`} numberOfLines={1} style={{color:colors.muted,fontSize:12,lineHeight:22,flexShrink:1}}>{`·  ${dogri}`}</Text>:null}
+      {dogri?<Text accessibilityLabel={`Dogri: ${dogri}`} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{color:colors.muted,fontSize:12,lineHeight:22,flexShrink:1}}>{`·  ${dogri}`}</Text>:null}
     </View>
     {localMonth?<View style={{height:20,paddingLeft:22,justifyContent:"center"}}><Text numberOfLines={1} style={{color:colors.muted,fontSize:12,lineHeight:18,textAlign:"left",writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr"}}>{localMonth}</Text></View>:null}
   </View>;

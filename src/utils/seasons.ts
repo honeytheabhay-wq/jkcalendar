@@ -10,11 +10,11 @@ export type SeasonId = keyof typeof seasons;
 export type Season = (typeof seasons)[SeasonId];
 
 // The four Dogri names and spellings supplied by the app's owner.
-// Both Kashmiri winter periods share Syal; no rainy-season translation is assumed.
+// Both Kashmiri winter periods share Syal.
 const dogriSeasons = {
   sonth: "ब्हार · Bhar",
   grishm: "सोहा · Soha",
-  wahrath: "",
+  wahrath: "बरसात / बरखा रुत्त · Barsat / Barkha Rutt",
   harud: "पत्तर-झाड़ · Pattar-Jhar",
   wand: "स्याल · Syal",
   shishur: "स्याल · Syal",

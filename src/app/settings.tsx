@@ -1,25 +1,30 @@
 import { Column, Host, Picker, Switch } from "@expo/ui";
 import { Stack } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { useCalendarTheme } from "@/theme";
 import { getEvents, useEvents } from "@/utils/events";
 import { setPreference, usePreferences } from "@/utils/preferences";
 import { useReminderStatus } from "@/utils/reminder-status";
-import { sendTestReminder, syncReminders } from "@/utils/reminders";
-import { checkOfficialOrders, useOrderStatus } from "@/utils/official-orders";
+import { requestReminderPermission, sendTestReminder, syncReminders } from "@/utils/reminders";
+import { holidayReminderHours, holidayReminderPreview, holidayReminderScopes } from "@/utils/holiday-reminders";
+import { checkOfficialOrders, markOrdersSeen, useOrderStatus } from "@/utils/official-orders";
 import { officialOrdersUrl } from "@/utils/official-orders-model";
 import { widgetData } from "@/utils/widget-data";
 import { syncWidgets } from "@/widgets/sync";
 import { labelLanguages } from "@/utils/regional-labels";
 import { seasonalMotionLevels } from "@/utils/season-effects";
+import { hijriDate, hijriLabel, hijriOffsets, kashmiriPanchang, panchangLabel } from "@/utils/regional-calendars";
 import { SeasonalScreen } from "@/components/seasonal-screen";
 
 export default function SettingsRoute() {
   const { colors:c, themeName }=useCalendarTheme(), preferences=usePreferences(), reminders=useReminderStatus(), orders=useOrderStatus();
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
   const {events}=useEvents();
+  // Orders that were new when Settings opened stay highlighted on this visit; the home banner is cleared.
+  const [newOrders]=useState(()=>orders.unseen);
+  useEffect(()=>{markOrdersSeen();},[]);
   const snapshot=widgetData(events,new Date(),c), dark=themeName==="midnight-indigo";
   async function run(task:()=>Promise<unknown>) { if(busy)return;setBusy(true);setMessage("");try{const result=await task();if(typeof result==="string")setMessage(result);}catch(e){setMessage(e instanceof Error?e.message:"Could not finish. Please try again.");}finally{setBusy(false);} }
   const heading=(text:string)=><Text accessibilityRole="header" style={{color:c.ink,fontSize:18,fontWeight:"800"}}>{text}</Text>;
@@ -28,6 +33,11 @@ export default function SettingsRoute() {
   const section={padding:18,gap:12,borderRadius:22,backgroundColor:c.surface} as const;
   return <SeasonalScreen><ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{padding:18,paddingBottom:48,gap:16,backgroundColor:c.background}}>
     <Stack.Screen options={{title:"Settings"}} />
+    <View style={section}>
+      {heading("Appearance")}
+      <Host matchContents colorScheme={dark?"dark":"light"} seedColor={c.primary}><Picker selectedValue={preferences.appearance} onValueChange={value=>{if(value!=="system"&&value!=="light"&&value!=="dark")return;try{setPreference("appearance",value);}catch{setMessage("Could not save this setting.");}}}>{([["system","Match phone"],["light","Light"],["dark","Dark"]] as const).map(([value,label])=><Picker.Item key={value} label={label} value={value} />)}</Picker></Host>
+      {note("Dark uses the Midnight Indigo colours and night versions of the seasonal effects. Match phone follows your phone's dark mode.")}
+    </View>
     <View style={section}>
       {heading("Regional feel")}
       <Host matchContents colorScheme={dark?"dark":"light"} seedColor={c.primary}><Switch label="Automatic seasonal colours" value={preferences.autoSeasonColours} onValueChange={value=>{try{setPreference("autoSeasonColours",value);}catch{setMessage("Could not save this setting.");}}} /></Host>
@@ -38,6 +48,12 @@ export default function SettingsRoute() {
       <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Extra date labels</Text>
       <Host matchContents colorScheme={dark?"dark":"light"} seedColor={c.primary}><Picker selectedValue={preferences.labelLanguage} onValueChange={value=>{if(value!=="english"&&value!=="kashmiri"&&value!=="dogri")return;try{setPreference("labelLanguage",value);}catch{setMessage("Could not save this setting.");}}}>{labelLanguages.map(language=><Picker.Item key={language.value} label={language.label} value={language.value} />)}</Picker></Host>
       {note("English headings stay visible. Optional Kashmiri or Dogri month and full-date labels work offline.")}
+      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Lunar dates under each date</Text>
+      <Host matchContents colorScheme={dark?"dark":"light"} seedColor={c.primary}><Picker selectedValue={preferences.lunarDates} onValueChange={value=>{if(value!=="off"&&value!=="hijri"&&value!=="kashmiri"&&value!=="both")return;try{setPreference("lunarDates",value);}catch{setMessage("Could not save this setting.");}}}>{([["both","Hijri + Kashmiri Pandit"],["hijri","Hijri"],["kashmiri","Kashmiri Pandit"],["off","Off"]] as const).map(([value,label])=><Picker.Item key={value} label={label} value={value} />)}</Picker></Host>
+      {note(`Today: ${hijriLabel(hijriDate(new Date(),preferences.hijriOffset))} · ${panchangLabel(kashmiriPanchang(new Date()))}. On the calendar, the Hijri day is on the left and the tithi on the right (S7 = Shukla Saptami, K3 = Krishna Tritiya, Pur = Purnima, Ama = Amavasya). Tap a date for full details.`)}
+      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Hijri date adjustment</Text>
+      <View style={{flexDirection:"row",flexWrap:"wrap",gap:8}}>{hijriOffsets.map(offset=><Pressable key={offset} accessibilityRole="button" accessibilityLabel={`Hijri adjustment ${offset} days`} accessibilityState={{selected:preferences.hijriOffset===offset}} onPress={()=>{try{setPreference("hijriOffset",offset);}catch{setMessage("Could not save this setting.");}}} style={{minHeight:44,minWidth:52,paddingHorizontal:14,alignItems:"center",justifyContent:"center",borderRadius:22,backgroundColor:preferences.hijriOffset===offset?c.primary:c.primarySoft}}><Text style={{color:preferences.hijriOffset===offset?c.onPrimary:c.primaryDark,fontSize:13}}>{offset>0?`+${offset}`:offset}</Text></Pressable>)}</View>
+      {note("Hijri dates are calculated and can differ by a day from local moon sighting; adjust if your mosque's date differs. Kashmiri Pandit tithis are calculated for sunrise in Srinagar and are approximate near tithi changes.")}
     </View>
     <View style={section}>
       {heading("Accessibility")}
@@ -48,6 +64,10 @@ export default function SettingsRoute() {
     </View>
     <View style={section}>
       {heading("Reminders")}
+      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Holiday reminders</Text>
+      <Host matchContents colorScheme={dark?"dark":"light"} seedColor={c.primary}><Picker selectedValue={preferences.holidayReminders} onValueChange={value=>{if(value!=="off"&&value!=="general"&&value!=="all")return;void run(async()=>{setPreference("holidayReminders",value);if(value!=="off"&&!await requestReminderPermission())return "Allow notifications in phone settings to get holiday reminders.";await syncReminders(getEvents());});}}>{holidayReminderScopes.map(scope=><Picker.Item key={scope.value} label={scope.label} value={scope.value} />)}</Picker></Host>
+      {preferences.holidayReminders!=="off"?<View style={{flexDirection:"row",flexWrap:"wrap",gap:8}}>{holidayReminderHours.map(hour=><Pressable key={hour} accessibilityRole="button" accessibilityState={{selected:preferences.holidayReminderHour===hour}} onPress={()=>void run(async()=>{setPreference("holidayReminderHour",hour);await syncReminders(getEvents());})} style={{minHeight:44,paddingHorizontal:14,justifyContent:"center",borderRadius:22,backgroundColor:preferences.holidayReminderHour===hour?c.primary:c.primarySoft}}><Text style={{color:preferences.holidayReminderHour===hour?c.onPrimary:c.primaryDark,fontSize:13}}>{holidayReminderPreview(hour)}</Text></Pressable>)}</View>:null}
+      {note(preferences.holidayReminders==="off"?"No holiday alerts.":`A notification at ${holidayReminderPreview(preferences.holidayReminderHour)} the evening before each ${preferences.holidayReminders==="general"?"J&K-wide ":""}holiday, e.g. “Tomorrow: Diwali · Government offices closed”. Moon-dependent dates are marked.`)}
       {note(reminders.granted===null?"Checking notification permission…":reminders.granted?`Notifications allowed · ${reminders.queued}/${reminders.expected} future reminders queued`:"Notifications are off. Events are still saved.")}
       {note(reminders.lastSyncAt?`Last queue check: ${new Date(reminders.lastSyncAt).toLocaleString()}`:"No queue check completed yet.")}
       {reminders.error?<Text accessibilityRole="alert" style={{color:c.danger,fontSize:13}}>{reminders.error}</Text>:null}
@@ -65,7 +85,7 @@ export default function SettingsRoute() {
       {orders.error?<Text accessibilityRole="alert" style={{color:c.danger,fontSize:12}}>{orders.error}</Text>:null}
       {button(orders.checking?"Checking…":"Check official orders now",checkOfficialOrders)}
       {orders.checkedAt&&!orders.checking&&!orders.orders.some(o=>!o.included)?note("No additional holiday orders found in the recent records checked. This does not cover the full archive."):null}
-      {orders.orders.map(order=><Pressable key={order.id} accessibilityRole="link" onPress={()=>void run(()=>Linking.openURL(order.url))} style={{minHeight:48,gap:4,paddingVertical:10,borderBottomWidth:1,borderColor:c.line}}><Text style={{color:c.primaryDark,fontSize:13,fontWeight:"700"}}>{order.title} ↗</Text>{note(`${order.reference} · ${order.included?"Included in calendar":"Review official order — not applied to dates"}`)}</Pressable>)}
+      {orders.orders.map(order=><Pressable key={order.id} accessibilityRole="link" onPress={()=>void run(()=>Linking.openURL(order.url))} style={{minHeight:48,gap:4,paddingVertical:10,borderBottomWidth:1,borderColor:c.line}}><Text style={{color:c.primaryDark,fontSize:13,fontWeight:"700"}}>{order.title} ↗</Text>{note(`${newOrders.includes(order.id)?"NEW · ":""}${order.reference} · ${order.included?"Included in calendar":"Review official order — not applied to dates"}`)}</Pressable>)}
       {button("Open full official archive",()=>Linking.openURL(officialOrdersUrl))}
       {note("Checks read the GAD website’s recent order listing. Newly detected orders require review; the app does not guess amended dates from document titles.")}
     </View>

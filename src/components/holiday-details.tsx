@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Linking, Modal, Pressable, ScrollView, View } from "react-native";
+import { Linking, Modal, Pressable, ScrollView, Share, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import type { Holiday } from "@/data/holidays-2026";
 import { useCalendarTheme } from "@/theme";
 import { fromDateKey } from "@/utils/dates";
 import { holidaySource } from "@/utils/holiday-info";
+import { googleCalendarUrl, holidayText } from "@/utils/holiday-share";
 import { useSeasonOverlay } from "@/utils/season-motion-state";
 import { SeasonalScreen } from "./seasonal-screen";
 
@@ -32,6 +33,10 @@ export function HolidayDetails({ holiday, onClose }: { holiday: Holiday | null; 
           <Text selectable style={{ color: c.muted, fontSize: 12 }}>{source.date} · J&K General Administration Department</Text>
           <Text selectable style={{ color: c.ink, fontSize: 13 }}>{source.note}</Text>
           <Pressable accessibilityRole="link" onPress={openSource} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ color: c.primaryDark, fontSize: 14, textDecorationLine: "underline" }}>Open official order ↗</Text></Pressable>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            <Pressable accessibilityRole="button" onPress={() => { setError(""); void Share.share({ message: holidayText(holiday) }).catch(() => setError("Could not open sharing.")); }} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: "center", borderRadius: 22, backgroundColor: c.primarySoft }}><Text style={{ color: c.primaryDark, fontSize: 13, fontWeight: "700" }}>Share</Text></Pressable>
+            <Pressable accessibilityRole="link" onPress={() => { setError(""); void Linking.openURL(googleCalendarUrl(holiday)).catch(() => setError("Could not open Google Calendar.")); }} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: "center", borderRadius: 22, backgroundColor: c.primarySoft }}><Text style={{ color: c.primaryDark, fontSize: 13, fontWeight: "700" }}>Add to Google Calendar ↗</Text></Pressable>
+          </View>
           {error ? <Text accessibilityRole="alert" style={{ color: c.danger }}>{error}</Text> : null}
         </ScrollView>
         <Pressable onPress={onClose} accessibilityLabel="Close holiday details" style={{ minHeight: 46, alignItems: "center", justifyContent: "center", borderRadius: 24, backgroundColor: c.primary }}><Text style={{ color: c.onPrimary, fontWeight: "700" }}>Done</Text></Pressable>

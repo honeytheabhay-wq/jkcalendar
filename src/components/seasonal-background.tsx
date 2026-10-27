@@ -14,7 +14,11 @@ function Motif({particle:p,colour}:{particle:Particle;colour:string}) {
   const w=p.width,h=p.height;
   if(p.kind==="chinar")return <Image source={require("../../assets/season-icons/chinar.png")} style={{width:w,height:h,tintColor:colour}} />;
   if(p.kind==="petal")return <View style={{width:w,height:h,backgroundColor:colour,borderTopLeftRadius:12,borderBottomRightRadius:12,borderTopRightRadius:4,borderBottomLeftRadius:4}} />;
-  if(p.kind==="rain")return <View style={{width:w,height:h,borderRadius:w,backgroundColor:colour}} />;
+  // Teardrop: a square rounded on three corners, turned 45° so the sharp corner points up, with a small shine.
+  if(p.kind==="rain")return <View style={{width:w,height:h,alignItems:"center",justifyContent:"flex-end"}}>
+    <View style={{width:w,height:w,borderTopLeftRadius:0,borderTopRightRadius:w,borderBottomLeftRadius:w,borderBottomRightRadius:w,backgroundColor:colour,transform:[{rotate:"45deg"}]}} />
+    <View style={{position:"absolute",bottom:w*.3,left:w*.28,width:w*.22,height:w*.3,borderRadius:w,backgroundColor:"#FFFFFFAA"}} />
+  </View>;
   if(p.kind==="snow")return <View style={{width:w,height:h,borderRadius:w,backgroundColor:colour}} />;
   if(p.kind==="flake")return <Image source={snowIcon} style={{width:w,height:h,tintColor:colour}} />;
   if(p.kind==="mote")return <Glow width={w} height={h} colour={colour} core />;
@@ -44,8 +48,8 @@ function frame(p:Particle,progress:number,width:number,height:number) {
     case "petal": dy=-40+progress*(height+80); dx=(progress-.5)*p.drift*5+wave*p.drift*.4; rotate=-25+progress*80; break; // diagonal drift
     case "chinar": dy=-40+progress*(height+80); dx=wave*p.drift; rotate=-25+progress*80; break;
     case "snow": dy=-20+progress*(height+40); dx=wave*p.drift*.8; break;
-    case "flake": dy=-40+progress*(height+80); dx=wave*p.drift; rotate=progress*140; break;
-    case "rain": dy=-60+progress*(height+120); dx=progress*p.drift; rotate=-Math.atan2(p.drift,height+120)*180/Math.PI; life=Math.min(1,progress*10,(1-progress)*10); break;
+    case "flake": dy=-40+progress*(height+80); dx=wave*p.drift*(p.width>18?1.4:.8); rotate=(p.width>18?90:200)*progress; break;
+    case "rain": dy=-60+progress*(height+120); dx=progress*p.drift*.4; life=Math.min(1,progress*10,(1-progress)*10); break;
     case "mote": dy=-progress*height*.45; dx=wave*p.drift; scale=.85+.25*(.5+.5*Math.sin(progress*Math.PI*6)); break;
     case "mist": dx=(progress-.5)*p.drift*6; break;
     case "sunglow": scale=.92+.16*Math.sin(progress*Math.PI); life=.65+.35*Math.sin(progress*Math.PI); break;

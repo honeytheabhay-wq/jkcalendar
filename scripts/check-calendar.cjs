@@ -34,8 +34,34 @@ async function main() {
   for(const [id,script] of Object.entries({harud:'ہارُد',wand:'وَنٛدٕ',sonth:'سونٛتھ',grishm:'گرٛیشِم',wahrath:'ؤہراتھ',shishur:'شِشُر'}))assert.equal(seasons[id].script,script);
   assert.equal(dogriSeasonLabel('sonth'),'ब्हार · Bhar');assert.equal(dogriSeasonLabel('grishm'),'सोहा · Soha');
   assert.equal(dogriSeasonLabel('harud'),'पत्तर-झाड़ · Pattar-Jhar');assert.equal(dogriSeasonLabel('wand'),'स्याल · Syal');assert.equal(dogriSeasonLabel('shishur'),'स्याल · Syal');assert.equal(dogriSeasonLabel('wahrath'),'बरसात / बरखा रुत्त · Barsat / Barkha Rutt');
+  const {kashmiriPanchang,hijriDate}=load('src/utils/regional-calendars.ts');
+  {const d=s=>{const[y,m,x]=s.split('-').map(Number);return new Date(y,m-1,x,12);};
+   const p=s=>{const v=kashmiriPanchang(d(s));return `${v.adhik?'Adhik ':''}${v.monthName} ${v.paksha} ${v.tithiName}`;};
+   assert.equal(p('2026-02-15'),'Phalguna Krishna Trayodashi'); // Herath
+   assert.equal(p('2026-05-01'),'Vaishakha Shukla Purnima'); // Buddha Purnima
+   assert.equal(p('2026-05-25'),'Adhik Jyeshtha Shukla Dashami'); // 2026 has an Adhik Jyeshtha
+   assert.equal(p('2026-06-22'),'Jyeshtha Shukla Ashtami'); // Zyeth Atham, Mela Khir Bhawani
+   assert.equal(p('2026-08-28'),'Shravana Shukla Purnima'); // Raksha Bandhan
+   assert.equal(p('2026-09-04'),'Bhadrapada Krishna Ashtami'); // Janmashtami
+   const navreh=kashmiriPanchang(d('2026-03-19'));assert(navreh.navreh&&navreh.saptarishiYear===5102&&navreh.tithiName==='Pratipada');
+   assert.equal(kashmiriPanchang(d('2026-03-18')).saptarishiYear,5101);assert(kashmiriPanchang(d('2027-04-07')).navreh);
+   for(const [s,day,month] of [['2026-05-27',10,12],['2026-06-26',10,1],['2026-08-26',12,3]]){const h=hijriDate(d(s));assert.equal(h.day,day,s);assert.equal(h.month,month,s);}
+   assert.equal(hijriDate(d('2026-03-21'),-2).month,10);assert.equal(hijriDate(d('2026-03-21'),-2).day,1);}
+  const {searchHolidays,holidayListText,googleCalendarUrl}=load('src/utils/holiday-share.ts');
+  assert.deepEqual(searchHolidays(holidays2026,'eid').map(h=>h.date),['2026-03-21','2026-05-27','2026-05-28','2026-08-26','2026-08-28']);
+  assert.equal(searchHolidays(holidays2026,'EID ul fitr').length,1);assert.equal(searchHolidays(holidays2026,'kishtwar').length,4);assert.equal(searchHolidays(holidays2026,'  ').length,0);
+  assert(holidayListText(holidays2026,2026).split('\n').length===51+5) // title, blank, 51 holidays, blank, moon note, footer;
+  assert(googleCalendarUrl(holidays2026.find(h=>h.name==='Diwali')).includes('dates=20261108/20261109'));
+  const {buildHolidayReminderPlan}=load('src/utils/holiday-reminders.ts');
+  {const now=new Date(2026,9,27,12),plan=buildHolidayReminderPlan(holidays2026,'general',19,now);
+   assert(plan.length>0&&plan.length<=20);assert(plan.every(p=>p.at>now.getTime()&&new Date(p.at).getHours()===19));
+   const diwali=plan.find(p=>p.date==='2026-11-08');assert(diwali&&diwali.title==='Tomorrow: Diwali'&&/offices closed/.test(diwali.body));
+   assert.equal(new Date(diwali.at).getDate(),7);
+   assert(!plan.some(p=>p.date==='2026-11-10'),'local Urs excluded from J&K-wide reminders');
+   assert(buildHolidayReminderPlan(holidays2026,'all',19,now).some(p=>p.date==='2026-11-10'&&/moon/.test(p.body)));
+   assert.equal(buildHolidayReminderPlan(holidays2026,'off',19,now).length,0);}
   const {seasonalScenes,seasonalParticles,seasonMotionEnabled,normaliseSeasonalMotion,seasonFadeStops,seasonStrengthAt,seasonFadeMask}=load('src/utils/season-effects.ts');
-  for(const [id,kinds] of Object.entries({sonth:['petal','chinar'],grishm:['mote','sunglow'],wahrath:['mist','rain'],harud:['chinar'],wand:['mist','sparkle'],shishur:['snow','flake']})){
+  for(const [id,kinds] of Object.entries({sonth:['petal','chinar'],grishm:['mote','sunglow'],wahrath:['mist','rain'],harud:['chinar'],wand:['mist','sparkle'],shishur:['flake']})){
     const subtle=seasonalParticles(id),lively=seasonalParticles(id,'lively');
     assert.deepEqual([...new Set(subtle.map(p=>p.kind))].sort(),kinds.sort());
     const weather=id==='wahrath'||id==='shishur';
@@ -122,6 +148,8 @@ async function main() {
     async cancelScheduledNotificationAsync(id) { cancellations.push(id); scheduled = scheduled.filter(item => item.identifier !== id); },
     async scheduleNotificationAsync(item) { if(failures){failures--;throw new Error('Temporary scheduling failure');}scheduled.push(item); return item.identifier; },
   });
+  // These assertions count event alerts only, so holiday reminders are switched off in the stored preferences.
+  {const memory=new Map([['jk-calendar-preferences-v1',JSON.stringify({holidayReminders:'off'})]]);global.localStorage={getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,value)};}
   const { syncReminders, requestReminderPermission } = load('src/utils/reminders.ts');
   const future = { ...base, date: '2099-01-01', repeat: 'none', updatedAt: 1 };
   await syncReminders([future]); assert.equal(scheduled.length, 2);
@@ -149,6 +177,7 @@ async function main() {
   granted=false;await assert.rejects(()=>sendTestReminder());
   const memory=new Map();global.localStorage={getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,value)};
   memory.set('jk-calendar-preferences-v1',JSON.stringify({reduceMotion:true,labelLanguage:'invalid',autoSeasonColours:false}));
+  cache.delete(path.resolve(root,'src/utils/preferences.ts')); // reminders loaded it earlier; read the new storage
   const {getPreferences,setPreference}=load('src/utils/preferences.ts');
   assert.equal(getPreferences().labelLanguage,'english');assert.equal(getPreferences().reduceMotion,true);assert.equal(getPreferences().autoSeasonColours,false);
   assert.equal(getPreferences().seasonalMotion,'lively');setPreference('seasonalMotion','off');assert.equal(getPreferences().seasonalMotion,'off');assert.equal(JSON.parse(memory.get('jk-calendar-preferences-v1')).seasonalMotion,'off');setPreference('seasonalMotion','lively');assert.equal(JSON.parse(memory.get('jk-calendar-preferences-v1')).seasonalMotion,'lively');
@@ -159,6 +188,7 @@ async function main() {
   const {checkOfficialOrders,getOrderStatus}=load('src/utils/official-orders.ts');
   const firstCheck=checkOfficialOrders(),secondCheck=checkOfficialOrders();assert.equal(firstCheck,secondCheck);await firstCheck;
   assert.equal(getOrderStatus().checkedCount,3);assert.equal(getOrderStatus().orders.length,2);const lastCheck=getOrderStatus().checkedAt;
+  assert.deepEqual(getOrderStatus().unseen,[],'first check records existing orders without flagging them');
   offline=true;await checkOfficialOrders();assert.equal(getOrderStatus().checkedAt,lastCheck);assert.equal(getOrderStatus().orders.length,2);assert.equal(getOrderStatus().error,'Offline');
   console.log(`Checked ${files.length} TypeScript files; calendar, quick entry, widget timelines, official-order cache/failure, reminder retry/test confirmation and all 51 holidays passed.`);
 }

@@ -15,6 +15,7 @@ import { monthGrid, toDateKey } from "@/utils/dates";
 import type { CalendarEvent } from "@/utils/events";
 import { usePreferences } from "@/utils/preferences";
 import { regionalDateLabel } from "@/utils/regional-labels";
+import { hijriDate, hijriLabel, hijriShortLabel, kashmiriPanchang, panchangLabel, panchangShort } from "@/utils/regional-calendars";
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const noHolidays: string[] = [];
@@ -45,6 +46,8 @@ type DayBubbleProps = {
   hasEvent: boolean;
   holidayNames: string[];
   regionalLabel: string;
+  lunarLeft: string;
+  lunarRight: string;
   colors: ThemeColors;
   styles: GridStyles;
   glassLevel: GlassLevel;
@@ -68,6 +71,8 @@ const DayBubble = memo(function DayBubble({
   hasEvent,
   holidayNames,
   regionalLabel,
+  lunarLeft,
+  lunarRight,
   colors,
   styles,
   glassLevel,
@@ -130,10 +135,14 @@ const DayBubble = memo(function DayBubble({
           <View pointerEvents="none" style={[styles.gloss, { opacity: reduceTransparency ? 0 : glass.shine }]} />
           <View pointerEvents="none" style={[styles.glassShine, { opacity: reduceTransparency ? 0 : glass.shine }]} />
           {today ? <Animated.View pointerEvents="none" style={[styles.todayHalo, { borderRadius: Math.min(11, cellSize * 0.22) }, !reducedMotion && { animationName: { from: { opacity: 0.25 }, "50%": { opacity: 1 }, to: { opacity: 0.25 } }, animationDuration: 1200, animationIterationCount: 2, animationTimingFunction: cubicBezier(0.77, 0, 0.175, 1) }]} /> : null}
-          <Text style={[styles.dayNumber, muted && styles.mutedNumber, selected && styles.selectedNumber, holidayNames.length > 0 && styles.holidayNumber, today && !holidayNames.length && styles.todayNumber]}>
+          <Text style={[styles.dayNumber, (lunarLeft || lunarRight) && styles.dayNumberRaised, muted && styles.mutedNumber, selected && styles.selectedNumber, holidayNames.length > 0 && styles.holidayNumber, today && !holidayNames.length && styles.todayNumber]}>
             {date.getDate()}
           </Text>
-          <View style={styles.markers}>
+          {lunarLeft || lunarRight ? <View pointerEvents="none" style={[styles.lunarRow, !(lunarLeft && lunarRight) && styles.lunarRowSingle]}>
+            {lunarLeft ? <Text allowFontScaling={false} numberOfLines={1} style={[styles.lunarText, selected && !holidayNames.length && styles.selectedLunar]}>{lunarLeft}</Text> : null}
+            {lunarRight ? <Text allowFontScaling={false} numberOfLines={1} style={[styles.lunarText, selected && !holidayNames.length && styles.selectedLunar]}>{lunarRight}</Text> : null}
+          </View> : null}
+          <View style={[styles.markers, (lunarLeft || lunarRight) && styles.markersTop]}>
             {hasEvent ? <View style={[styles.marker, styles.eventDot, selected && styles.selectedDot, holidayNames.length > 0 && { backgroundColor: colors.ink }, today && !holidayNames.length && { backgroundColor: todayDateColors.ink }]} /> : null}
           </View>
         </Animated.View>
@@ -142,7 +151,8 @@ const DayBubble = memo(function DayBubble({
 });
 
 export function CalendarGrid({ viewMonth, selectedDate, events, width, onSelect, detailsDate, onDeleteEvent }: Props) {
-  const {labelLanguage}=usePreferences();
+  const {labelLanguage, lunarDates, hijriOffset}=usePreferences();
+  const showHijri = lunarDates === "hijri" || lunarDates === "both", showPanchang = lunarDates === "kashmiri" || lunarDates === "both";
   const { colors, glassLevel, textScale, reduceTransparency, reduceMotion, highContrast } = useCalendarTheme();
   const reducedMotion = useReducedMotion() || reduceMotion;
   const { fontScale } = useWindowDimensions();
@@ -206,7 +216,9 @@ export function CalendarGrid({ viewMonth, selectedDate, events, width, onSelect,
               weekend={date.getDay() === 0 || date.getDay() === 6}
               hasEvent={eventDates.has(dateKey)}
               holidayNames={holidaysByDate.get(dateKey) ?? noHolidays}
-              regionalLabel={regionalDateLabel(date,labelLanguage)}
+              regionalLabel={[regionalDateLabel(date,labelLanguage),hijriLabel(hijriDate(date,hijriOffset)),panchangLabel(kashmiriPanchang(date))].filter(Boolean).join(". ")}
+              lunarLeft={showHijri ? hijriShortLabel(hijriDate(date,hijriOffset)) : ""}
+              lunarRight={showPanchang ? panchangShort(kashmiriPanchang(date)) : ""}
               colors={colors}
               styles={styles}
               glassLevel={glassLevel}
@@ -221,7 +233,7 @@ export function CalendarGrid({ viewMonth, selectedDate, events, width, onSelect,
         })}
       </View>
       {popup ? <Pressable onHoverIn={hover.keepOpen} onHoverOut={hover.leave} onFocus={hover.keepOpen} onBlur={hover.leave} onLayout={event => setPopupHeight(event.nativeEvent.layout.height)} accessibilityLiveRegion="polite" onAccessibilityEscape={() => setPopup(null)} style={[styles.popupCard, { width: popupWidth, left: popupLeft, top: popupTop, maxHeight:popupMaxHeight }]}>
-        <View style={styles.popupHeader}><View style={{flex:1,gap:3}}><Text style={styles.popupDate}>{popup.date.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage!=="english"?<Text selectable style={[styles.popupScope,{writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr",textAlign:"left"}]}>{regionalDateLabel(popup.date,labelLanguage)}</Text>:null}</View><Pressable accessibilityLabel="Close date details" onPress={() => { hover.keepOpen(); setPopup(null); }} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
+        <View style={styles.popupHeader}><View style={{flex:1,gap:3}}><Text style={styles.popupDate}>{popup.date.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage!=="english"?<Text selectable style={[styles.popupScope,{writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr",textAlign:"left"}]}>{regionalDateLabel(popup.date,labelLanguage)}</Text>:null}<Text selectable style={styles.popupScope}>Hijri: {hijriLabel(hijriDate(popup.date,hijriOffset))} (approx.)</Text><Text selectable style={styles.popupScope}>Kashmiri Pandit: {panchangLabel(kashmiriPanchang(popup.date))}</Text></View><Pressable accessibilityLabel="Close date details" onPress={() => { hover.keepOpen(); setPopup(null); }} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
         <ScrollView style={[styles.popupScroll,{maxHeight:Math.max(45,popupMaxHeight-78)}]} contentContainerStyle={{gap:8}} nestedScrollEnabled keyboardShouldPersistTaps="handled">
           {popupHolidays.length ? popupHolidays.map((holiday) => <Pressable accessibilityRole="button" onPress={() => { setDetail(holiday); setPopup(null); }} key={`${holiday.date}-${holiday.name}`} style={styles.popupHoliday}><Text style={styles.popupName}>{holiday.name}</Text><Text style={styles.popupScope}>{holiday.scope} · {holiday.kind}{holiday.subjectToMoon ? " · Subject to moon sighting" : ""}</Text><Text style={styles.popupScope}>Details & source ↗</Text></Pressable>) : <Text style={styles.popupScope}>{holidayYearLoaded(popup.date.getFullYear()) ? "No holiday listed for this date." : `Holiday schedule unavailable for ${popup.date.getFullYear()}.`}</Text>}
           {popupEvents.map(event=><View key={event.id} style={styles.popupEvent}>
@@ -256,6 +268,12 @@ function createStyles(colors: ThemeColors) {
     todayBubble: { backgroundColor: colors.today, borderColor: colors.todayInk, borderWidth: 2, boxShadow: lightShadows ? undefined : `0 0 0 3px ${colors.surface}, 0 0 0 5px ${colors.today}` },
     selectedBubble: { backgroundColor: `${colors.primary}E6`, borderColor: `${colors.surface}CC`, borderWidth: 1.5, boxShadow: lightShadows ? `0 4px 6px ${colors.primary}40` : `inset 0 1px 2px ${colors.surface}88, 0 2px 0 ${colors.primary}66, 0 10px 18px ${colors.primary}35` },
     dayNumber: { color: colors.ink, fontSize: 17, marginBottom: 3, fontWeight: "700", fontVariant: ["tabular-nums"] },
+    dayNumberRaised: { fontSize: 16, marginBottom: 11 },
+    lunarRow: { position: "absolute", bottom: 3, left: 3, right: 3, flexDirection: "row", justifyContent: "space-between" },
+    lunarRowSingle: { justifyContent: "center" },
+    lunarText: { color: colors.muted, fontSize: 8, lineHeight: 10, fontWeight: "700", fontVariant: ["tabular-nums"] },
+    selectedLunar: { color: colors.onPrimary },
+    markersTop: { top: 4, right: 4, bottom: undefined },
     mutedNumber: { color: colors.muted },
     todayNumber: { color: todayDateColors.ink, fontWeight: "800" },
     todayOutline: { borderColor: todayDateColors.ring, borderWidth: 2.5, boxShadow: lightShadows ? `0 3px 5px ${todayDateColors.ring}30` : `inset 0 0 0 1px ${todayDateColors.ring}55, 0 0 0 2px ${todayDateColors.ring}25, 0 7px 15px ${todayDateColors.ring}22` },

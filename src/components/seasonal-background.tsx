@@ -1,4 +1,3 @@
-import { Host, Icon } from "@expo/ui";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppState, Image, StyleSheet, View } from "react-native";
@@ -8,16 +7,16 @@ import { usePreferences } from "@/utils/preferences";
 import { seasonalParticles, seasonStrengthAt, seasonMotionEnabled } from "@/utils/season-effects";
 import { useSeasonOverlayOpen } from "@/utils/season-motion-state";
 
-const snowIcon=Icon.select({ios:"snowflake",android:require("../../assets/season-icons/snow.xml")});
+const snowIcon=require("../../assets/season-icons/snow.png");
 type Particle=ReturnType<typeof seasonalParticles>[number];
 
 function Motif({particle:p,colour}:{particle:Particle;colour:string}) {
   if(p.kind==="chinar")return <Image source={require("../../assets/season-icons/chinar.png")} style={{width:p.width,height:p.height,tintColor:colour}} />;
   if(p.kind==="petal")return <View style={{width:p.width,height:p.height,backgroundColor:colour,borderTopLeftRadius:12,borderBottomRightRadius:12,borderTopRightRadius:4,borderBottomLeftRadius:4}} />;
   if(p.kind==="raindrop")return <View style={{width:p.width,height:p.height,borderRadius:4,backgroundColor:colour}} />;
-  if(p.kind==="ripple")return <View style={{width:p.width,height:p.height}}>{[0,1,2].map(i=><View key={i} style={{position:"absolute",top:i*4,left:i*7,width:p.width-i*14,height:18,borderRadius:100,borderColor:colour,borderWidth:1}} />)}</View>;
+  if(p.kind==="ripple")return <View style={{width:p.width,height:p.height}}>{[0,1,2].map(i=><View key={i} style={{position:"absolute",top:i*4,left:i*7,width:p.width-i*14,height:18,borderRadius:100,borderColor:colour,borderWidth:1.5}} />)}</View>;
   if(p.kind==="mist"||p.kind==="sunlight")return <View style={{width:p.width,height:p.height,experimental_backgroundImage:`radial-gradient(ellipse at center, ${colour}CC 0%, ${colour}66 40%, ${colour}00 72%)`}} />;
-  return <View style={{width:p.width,height:p.height}}><Host style={{width:p.width,height:p.height}}><Icon name={snowIcon} size={p.width} color={colour} /></Host>{p.kind==="frost"?<Host style={{position:"absolute",left:28,top:28,width:20,height:20}}><Icon name={snowIcon} size={20} color={colour} /></Host>:null}</View>;
+  return <View style={{width:p.width,height:p.height}}><Image source={snowIcon} style={{width:p.width,height:p.height,tintColor:colour}} />{p.kind==="frost"?<Image source={snowIcon} style={{position:"absolute",left:28,top:28,width:20,height:20,tintColor:colour}} />:null}</View>;
 }
 
 export function SeasonalBackground({modal=false}:{modal?:boolean}) {
@@ -35,7 +34,7 @@ export function SeasonalBackground({modal=false}:{modal?:boolean}) {
       const falling=["petal","chinar","raindrop","snow"].includes(p.kind),turning=p.kind==="petal"||p.kind==="chinar";
       const animationName:CSSAnimationKeyframes={};
       for(let step=0;step<=12;step++){
-        const progress=step/12,dy=falling?-40+progress*(height+80):0,dx=falling?Math.sin(progress*Math.PI*2)*p.drift:(progress-.5)*p.drift;
+        const progress=step/12,dy=falling?-40+progress*(height+80):0,dx=p.kind==="petal"?(progress-.5)*p.drift*5+Math.sin(progress*Math.PI*2)*p.drift*.4:falling?Math.sin(progress*Math.PI*2)*p.drift:(progress-.5)*p.drift; // petals drift diagonally, leaves and snow sway
         const x=p.x/100+(dx+p.width/2)/Math.max(width,1),y=(falling?0:p.y/100)+(dy+p.height/2)/height;
         const life=Math.min(1,progress*6,(1-progress)*6);
         animationName[`${progress*100}%`]={opacity:p.opacity*life*seasonStrengthAt(x,y),transform:[{translateY:dy},{translateX:dx},{rotate:`${turning?-25+progress*80:p.kind==="raindrop"?12:0}deg`},{scale:p.kind==="ripple"?.8+progress*.5:p.kind==="frost"?.96+progress*.04:1}]};

@@ -1,18 +1,18 @@
-import { Host, Icon } from "@expo/ui";
-import { View } from "react-native";
+import { Image, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { useCalendarTheme } from "@/theme";
 import { usePreferences } from "@/utils/preferences";
 import { regionalMonthLabel } from "@/utils/regional-labels";
 import { dogriSeasonLabel } from "@/utils/seasons";
 
+// Plain tinted PNGs (rendered from the vector drawables beside them) draw the same on Android, iOS and web.
 const icons = {
-  sonth: Icon.select({ios:"camera.macro",android:require("../../../assets/season-icons/flower.xml")}),
-  grishm: Icon.select({ios:"water.waves",android:require("../../../assets/season-icons/waves.xml")}),
-  wahrath: Icon.select({ios:"cloud.rain",android:require("../../../assets/season-icons/rain.xml")}),
-  harud: Icon.select({ios:"leaf",android:require("../../../assets/season-icons/leaf.xml")}),
-  wand: Icon.select({ios:"tree",android:require("../../../assets/season-icons/tree.xml")}),
-  shishur: Icon.select({ios:"snowflake",android:require("../../../assets/season-icons/snow.xml")}),
+  sonth: require("../../../assets/season-icons/flower.png"),
+  grishm: require("../../../assets/season-icons/waves.png"),
+  wahrath: require("../../../assets/season-icons/rain.png"),
+  harud: require("../../../assets/season-icons/leaf.png"),
+  wand: require("../../../assets/season-icons/tree.png"),
+  shishur: require("../../../assets/season-icons/snow.png"),
 };
 
 export function MonthCaption({month}:{month:Date}) {
@@ -23,7 +23,7 @@ export function MonthCaption({month}:{month:Date}) {
   // Same rows and heights for every month, so the card never jumps: name, then Kashmiri script · Dogri, then the optional regional month.
   return <View style={{gap:2}}>
     <View style={{flexDirection:"row",alignItems:"center",gap:6,height:20}}>
-      <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={{width:16,height:16}}><Host style={{width:16,height:16}}><Icon name={icons[season.id]} size={14} color={colors.primaryDark} /></Host></View>
+      <Image source={icons[season.id]} accessible={false} importantForAccessibility="no" style={{width:16,height:16,tintColor:colors.primaryDark}} />
       <Text numberOfLines={1} style={{color:colors.primaryDark,fontSize:13,lineHeight:18,fontWeight:"700",flexShrink:1}}>{season.name} · {season.english}</Text>
     </View>
     <View style={{flexDirection:"row",alignItems:"center",gap:6,height:24,paddingLeft:22}}>

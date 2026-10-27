@@ -22,11 +22,74 @@
       "expo-router",
       "expo-sqlite",
       "expo-notifications",
-      ["expo-widgets", {"widgets": [{"name": "JKCalendarToday", "displayName": "J&K Calendar", "description": "Today, holidays and your next plan", "supportedFamilies": ["systemMedium"], "ios": {"supportedFamilies": ["systemMedium"]}}]}],
-      ["react-native-android-widget", {"widgets": [{"name": "JKCalendarToday", "label": "J&K Calendar", "description": "Today, holidays and your next plan", "minWidth": "250dp", "minHeight": "140dp", "targetCellWidth": 4, "targetCellHeight": 2, "resizeMode": "horizontal|vertical", "updatePeriodMillis": 1800000}]}]
+      [
+        "expo-widgets",
+        {
+          "widgets": [
+            {
+              "name": "JKCalendarToday",
+              "displayName": "J&K Calendar",
+              "description": "Today, holidays and your next plan",
+              "supportedFamilies": [
+                "systemMedium"
+              ],
+              "ios": {
+                "supportedFamilies": [
+                  "systemMedium"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "JKCalendarToday",
+              "label": "J&K Calendar",
+              "description": "Today, holidays and your next plan",
+              "minWidth": "250dp",
+              "minHeight": "140dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "ExpoWidgetsTarget",
+                  "bundleIdentifier": "com.jkcalendar.app.ExpoWidgetsTarget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.jkcalendar.app"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "670e9e34-1858-4df6-9a8c-2bd2b012f456"
+      }
     }
   }
 }

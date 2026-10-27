@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { router, Stack } from "expo-router";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -45,6 +45,8 @@ export function Home() {
   const [yearZoomed, setYearZoomed] = useState(false);
   const [yearOpened, setYearOpened] = useState(false);
   if (calendarView === "yearly" && !yearOpened) setYearOpened(true);
+  // The year view is built quietly a few seconds after launch, so even the first switch to Yearly only shows it.
+  useEffect(() => { const timer = setTimeout(() => startTransition(() => setYearOpened(true)), 3000); return () => clearTimeout(timer); }, []);
   const today = useToday();
   const followToday = useRef(true);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -188,7 +190,7 @@ export function Home() {
           </View>
           </GestureDetector>
       </View>
-      {yearOpened ? <View style={[styles.viewPane, calendarView !== "yearly" && styles.hidden]}>
+      {yearOpened ? <View pointerEvents={calendarView === "yearly" ? "auto" : "none"} style={[styles.viewPane, calendarView !== "yearly" && styles.offscreen]}>
         <YearCalendar year={viewMonth.getFullYear()} width={contentWidth} selectedDate={selectedDate} onJump={openJump} onZoomChange={setYearZoomed} onSelect={onYearSelect} />
       </View> : null}
 
@@ -216,6 +218,8 @@ function createStyles(colors: ThemeColors, narrow: boolean) {
     utilityBubble: { minHeight:28, paddingHorizontal:10, paddingVertical:4, justifyContent:"center", borderRadius:radii.full, backgroundColor:colors.primarySoft },
     viewPane: { width: "100%", alignItems: "center", gap: 10 },
     hidden: { display: "none" },
+    // Off screen and invisible rather than display: none, so the hidden year can still measure its text and lay out.
+    offscreen: { position: "absolute", top: 0, left: -10000, opacity: 0 },
     modeButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: radii.full, backgroundColor: colors.primarySoft },
     modeText: { color: colors.primaryDark, fontSize: 20, lineHeight: 24 },
     colourText: { color: colors.primaryDark, fontSize: 11, fontWeight: "700" },

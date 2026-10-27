@@ -34,6 +34,11 @@ export default function SettingsRoute() {
   return <SeasonalScreen><ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{padding:18,paddingBottom:48,gap:16,backgroundColor:c.background}}>
     <Stack.Screen options={{title:"Settings"}} />
     <View style={section}>
+      {heading("Appearance")}
+      <Host matchContents colorScheme={dark?"dark":"light"} seedColor={c.primary}><Picker selectedValue={preferences.appearance} onValueChange={value=>{if(value!=="system"&&value!=="light"&&value!=="dark")return;try{setPreference("appearance",value);}catch{setMessage("Could not save this setting.");}}}>{([["system","Match phone"],["light","Light"],["dark","Dark"]] as const).map(([value,label])=><Picker.Item key={value} label={label} value={value} />)}</Picker></Host>
+      {note("Dark uses the Midnight Indigo colours and night versions of the seasonal effects. Match phone follows your phone's dark mode.")}
+    </View>
+    <View style={section}>
       {heading("Regional feel")}
       <Host matchContents colorScheme={dark?"dark":"light"} seedColor={c.primary}><Switch label="Automatic seasonal colours" value={preferences.autoSeasonColours} onValueChange={value=>{try{setPreference("autoSeasonColours",value);}catch{setMessage("Could not save this setting.");}}} /></Host>
       {note("Season colours follow the month you view. Choose a manual colour under Colours whenever you prefer.")}

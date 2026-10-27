@@ -1,6 +1,7 @@
 import "expo-sqlite/localStorage/install";
 
 import { createContext, type PropsWithChildren, use, useMemo, useState, useSyncExternalStore } from "react";
+import { useColorScheme } from "react-native";
 import { setPreference, textMultiplier, usePreferences } from "@/utils/preferences";
 import { useSystemAccessibility } from "@/utils/system-accessibility";
 import { seasonOn, type Season, type SeasonId } from "@/utils/seasons";
@@ -180,7 +181,10 @@ export function CalendarThemeProvider({ children }: PropsWithChildren) {
   const preferences = usePreferences(), system = useSystemAccessibility();
   const [seasonDateKey,setSeasonDateKey] = useState(()=>toDateKey(new Date()));
   const season = seasonOn(fromDateKey(seasonDateKey));
-  const themeName: ThemeName = preferences.autoSeasonColours ? season.id : manualThemeName;
+  const systemScheme = useColorScheme();
+  // Dark mode uses the Midnight Indigo palette, which every screen and the season effects already support.
+  const dark = preferences.appearance === "dark" || (preferences.appearance === "system" && systemScheme === "dark");
+  const themeName: ThemeName = dark ? "midnight-indigo" : preferences.autoSeasonColours ? season.id : manualThemeName;
   const reduceMotion = preferences.reduceMotion || system.reduceMotion;
   const reduceTransparency = preferences.reduceTransparency || system.reduceTransparency;
   const highContrast = preferences.highContrast || system.highContrast;

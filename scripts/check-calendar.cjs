@@ -64,7 +64,7 @@ async function main() {
    assert(buildHolidayReminderPlan(holidays2026,'all',19,now).some(p=>p.date==='2026-11-10'&&/moon/.test(p.body)));
    assert.equal(buildHolidayReminderPlan(holidays2026,'off',19,now).length,0);}
   const {seasonalScenes,seasonalParticles,seasonMotionEnabled,normaliseSeasonalMotion,seasonFadeStops,seasonStrengthAt,seasonFadeMask}=load('src/utils/season-effects.ts');
-  for(const [id,kinds] of Object.entries({sonth:['petal','chinar'],grishm:['mote','sunglow'],wahrath:['mist','rain'],harud:['chinar'],wand:['mist','sparkle'],shishur:['flake']})){
+  for(const [id,kinds] of Object.entries({sonth:['petal','chinar'],grishm:['mote','sunglow'],wahrath:['mist','rain'],harud:['chinar'],wand:['mist','snow','sparkle'],shishur:['flake']})){
     const subtle=seasonalParticles(id),lively=seasonalParticles(id,'lively');
     assert.deepEqual([...new Set(subtle.map(p=>p.kind))].sort(),kinds.sort());
     const weather=id==='wahrath'||id==='shishur';

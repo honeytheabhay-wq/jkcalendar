@@ -12,7 +12,8 @@ export const seasonalScenes:Record<SeasonId,Scene>={
   grishm:{kind:"summer-light",effects:["sunglow","mote","mote","mote","mote","mote","mote","mote"],colour:"#D8A13A",darkColour:"#F3DB9F"},
   wahrath:{kind:"rain",effects:["mist","rain","rain","rain","mist","rain","rain","rain"],colour:"#6F8D9E",darkColour:"#C9DDE6"},
   harud:{kind:"chinar",effects:["chinar","chinar","chinar","chinar","chinar","chinar","chinar","chinar"],colour:"#BC723F",darkColour:"#EEC08C"},
-  wand:{kind:"frost-glints",effects:["mist","sparkle","sparkle","sparkle","sparkle","mist","sparkle","sparkle"],colour:"#7FA6BC",darkColour:"#E6EEF5"},
+  // Early winter: fine snow dust drifting slowly down through the mist, with one frost glint.
+  wand:{kind:"snow-dust",effects:["mist","snow","snow","sparkle","snow","mist","snow","snow"],colour:"#7FA6BC",darkColour:"#E6EEF5"},
   shishur:{kind:"snowflakes",effects:["flake"],colour:"#7FAACB",darkColour:"#F4FAFF"},
 };
 
@@ -37,6 +38,8 @@ export function seasonalParticles(id:SeasonId,level:SeasonalMotionLevel="subtle"
     if(kind==="rain"){width=8+(index%3)*2;height=width*1.35;duration=3600+(index%4)*500;opacity=.55;floor=.5;}
     if(kind==="sparkle"){width=14+(index%3)*5;height=width;y=8+(index*29)%80;duration=17000+(index%3)*2200;opacity=.6;floor=.5;if(index%3===1){colour="#C9A877";darkColour="#F3E2C2";}}
     if(kind==="snow"){width=4+(index%4)*2;height=width;duration=17000+(index%5)*2400;opacity=.58;floor=.55;if(index%3===1){colour="#9CC2DE";}}
+    // Wand's snow dust: smaller, softer and slower than a snowfall (about 26–35 s to cross the screen).
+    if(kind==="snow"&&id==="wand"){width=3+(index%3)*1.5;height=width;duration=26000+(index%4)*3000;opacity=.5;floor=.45;}
     // Snowflakes: sizes from about 9 to 30 and fall times from about 15 to 28 s, so they never move in step.
     if(kind==="flake"){width=[9,14,20,11,26,16,12,22][index%8];height=width;duration=17000+((index*7)%8)*2000;opacity=.6;floor=.55;if(index%3===1){colour="#9CC2DE";}}
     const scale=lively?1.35:1.15;
@@ -45,7 +48,7 @@ export function seasonalParticles(id:SeasonId,level:SeasonalMotionLevel="subtle"
     const speed=kind==="rain"?(lively?.85:1):(lively?.70:.9);
     return {kind,x,y,width,height,colour,darkColour,floor,phase:.08+((index*37+19)%100)/120,
       duration:Math.round(duration*speed),opacity:Math.min(.68,opacity*(lively?1.25:1.1)),
-      drift:(left?1:-1)*(kind==="petal"?28:kind==="chinar"?20:kind==="rain"?-60:kind==="mote"?14:12)};
+      drift:(left?1:-1)*(kind==="petal"?28:kind==="chinar"?20:kind==="rain"?-60:kind==="mote"?14:kind==="snow"&&id==="wand"?18:12)};
   });
 }
 

@@ -173,6 +173,18 @@ async function main() {
   await assert.rejects(() => useEvents().saveEvent({ title: 'Unstored', date: '2026-10-26' }));
   assert.equal(useEvents().events.length, 1); failSave = false;
   await useEvents().deleteEvent('old'); assert.equal(useEvents().events.length, 0);
+  // Backup: export then import; the newer copy of an event wins and invalid entries are skipped.
+  {const {exportEvents,importEvents}=load('src/utils/events.ts');
+   await useEvents().saveEvent({ title: 'Backed up', date: '2026-11-08' });const backup=exportEvents();const saved=useEvents().events[0];
+   await useEvents().saveEvent({ title: 'Edited after backup', date: '2026-11-08' }, saved.id);
+   let result=await importEvents(backup);assert.deepEqual(result,{added:0,updated:0,skipped:0});assert.equal(useEvents().events[0].title,'Edited after backup');
+   await useEvents().deleteEvent(saved.id);result=await importEvents(backup);assert.equal(result.added,1);assert.equal(useEvents().events[0].title,'Backed up');
+   result=await importEvents(JSON.stringify({app:'jk-calendar',events:[{id:'bad',title:'',date:'2026-13-40'}]}));assert.equal(result.skipped,1);
+   await assert.rejects(()=>importEvents('hello'));await useEvents().deleteEvent(saved.id);}
+  // Daily date notes: one per morning at 7, with all three calendars, holidays named in the title.
+  {const {buildDailyDatePlan}=load('src/utils/daily-dates.ts');const plans=buildDailyDatePlan(holidays2026,-1,3,new Date(2026,10,7,20));
+   assert.equal(plans.length,3);assert.equal(plans[0].date,'2026-11-08');assert.equal(new Date(plans[0].at).getHours(),7);
+   assert.match(plans[0].title,/Diwali/);assert.match(plans[0].body,/Hijri: .*\nKashmiri Pandit: .*\nHindi: .*विक्रम संवत 2083/);}
   granted=true;failures=1;await syncReminders([future]);assert.equal(failures,0);assert.equal(scheduled.filter(s=>s.content.data?.calendarOwner==='jk-calendar').length,1);
   const {sendTestReminder,startReminderDeliveryListener}=load('src/utils/reminders.ts'),{getReminderStatus}=load('src/utils/reminder-status.ts');
   await sendTestReminder();const test=getReminderStatus();assert(test.testAt>Date.now());assert(!test.testReceivedAt);

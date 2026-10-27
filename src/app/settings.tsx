@@ -1,13 +1,14 @@
 import { Stack, useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
-import { Linking, Pressable, ScrollView, View } from "react-native";
+import { Linking, Pressable, ScrollView, Share, TextInput, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { useCalendarTheme } from "@/theme";
-import { getEvents, useEvents } from "@/utils/events";
+import { exportEvents, getEvents, importEvents, useEvents } from "@/utils/events";
 import { setPreference, usePreferences } from "@/utils/preferences";
 import { useReminderStatus } from "@/utils/reminder-status";
 import { requestReminderPermission, sendTestReminder, syncReminders } from "@/utils/reminders";
 import { holidayReminderHours, holidayReminderPreview, holidayReminderScopes } from "@/utils/holiday-reminders";
+import { dailyDatesHour } from "@/utils/daily-dates";
 import { checkOfficialOrders, markOrdersSeen, useOrderStatus } from "@/utils/official-orders";
 import { officialOrdersUrl } from "@/utils/official-orders-model";
 import { widgetData } from "@/utils/widget-data";
@@ -21,7 +22,7 @@ const lunarDateOptions = [{value:"both",label:"Hijri + Kashmiri Pandit"},{value:
 
 export default function SettingsRoute() {
   const { colors:c }=useCalendarTheme(), preferences=usePreferences(), reminders=useReminderStatus(), orders=useOrderStatus();
-  const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState(""),[backupText,setBackupText]=useState("");
   // The sections below the fold are added once the slide-in animation has finished, so the page opens smoothly.
   const navigation=useNavigation();
   const [full,setFull]=useState(false);
@@ -75,6 +76,8 @@ export default function SettingsRoute() {
       <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Holiday reminders</Text>
       {choice(holidayReminderScopes,preferences.holidayReminders,value=>void run(async()=>{setPreference("holidayReminders",value);if(value!=="off"&&!await requestReminderPermission())return "Allow notifications in phone settings to get holiday reminders.";await syncReminders(getEvents());}))}
       {preferences.holidayReminders!=="off"?<View style={{flexDirection:"row",flexWrap:"wrap",gap:8}}>{holidayReminderHours.map(hour=><Pressable key={hour} accessibilityRole="button" accessibilityState={{selected:preferences.holidayReminderHour===hour}} onPress={()=>void run(async()=>{setPreference("holidayReminderHour",hour);await syncReminders(getEvents());})} style={{minHeight:44,paddingHorizontal:14,justifyContent:"center",borderRadius:22,backgroundColor:preferences.holidayReminderHour===hour?c.primary:c.primarySoft}}><Text style={{color:preferences.holidayReminderHour===hour?c.onPrimary:c.primaryDark,fontSize:13}}>{holidayReminderPreview(hour)}</Text></Pressable>)}</View>:null}
+      {toggle("Morning note with today's dates",preferences.dailyDates,value=>void run(async()=>{setPreference("dailyDates",value);if(value&&!await requestReminderPermission())return "Allow notifications in phone settings to get the morning note.";await syncReminders(getEvents());}))}
+      {note(`At ${holidayReminderPreview(dailyDatesHour)} each day: the date in Hijri, Kashmiri Pandit and Hindi (Vikram Samvat), and any holiday. Filled two weeks ahead each time you open the app.`)}
       {note(preferences.holidayReminders==="off"?"No holiday alerts.":`A notification at ${holidayReminderPreview(preferences.holidayReminderHour)} the evening before each ${preferences.holidayReminders==="general"?"J&K-wide ":""}holiday, e.g. “Tomorrow: Diwali · Government offices closed”. Moon-dependent dates are marked.`)}
       {note(reminders.granted===null?"Checking notification permission…":reminders.granted?`Notifications allowed · ${reminders.queued}/${reminders.expected} future reminders queued`:"Notifications are off. Events are still saved.")}
       {note(reminders.lastSyncAt?`Last queue check: ${new Date(reminders.lastSyncAt).toLocaleString()}`:"No queue check completed yet.")}
@@ -84,6 +87,13 @@ export default function SettingsRoute() {
       {reminders.testReceivedAt?note(`Last test delivery confirmed: ${new Date(reminders.testReceivedAt).toLocaleString()}`):reminders.testAt?note(`Test scheduled: ${new Date(reminders.testAt).toLocaleTimeString()}. Delivery has not been confirmed; tap the notification to confirm it.`):null}
       {button("Open phone notification settings",()=>Linking.openSettings())}
       {note("The next 40 future alerts are queued locally and refreshed when you use the app. Android battery restrictions can delay alerts. Try a test with the app closed and after restarting your phone.")}
+    </View>
+    <View style={section}>
+      {heading("Back up your events")}
+      {note(`${events.length} event${events.length===1?"":"s"} saved on this phone only. Export a backup and keep it in WhatsApp, Drive or email; paste it here on a new phone to restore.`)}
+      {button("Export events",async()=>{await Share.share({title:"J&K Calendar backup",message:exportEvents()});})}
+      <TextInput accessibilityLabel="Paste a backup to import" value={backupText} onChangeText={setBackupText} placeholder="Paste a backup here to import" placeholderTextColor={c.muted} multiline style={{minHeight:80,maxHeight:160,padding:12,borderRadius:14,borderWidth:1,borderColor:c.line,backgroundColor:c.background,color:c.ink,fontSize:12,textAlignVertical:"top"}} />
+      {backupText.trim()?button("Import events",async()=>{const result=await importEvents(backupText);setBackupText("");return `Imported: ${result.added} new, ${result.updated} updated${result.skipped?`, ${result.skipped} skipped (invalid)`:""}. Events already on this phone that were newer were kept.`;}):null}
     </View>
     <View style={section}>
       {heading("Official holidays")}

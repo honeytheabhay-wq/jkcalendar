@@ -29,6 +29,29 @@ export function useReminderRefresh() {
   }, []);
 }
 export function getEvents() { return eventCache; }
+
+// Backup as plain text: share it anywhere (WhatsApp, Drive, email) and paste it back to restore.
+export function exportEvents() { return JSON.stringify({ app: "jk-calendar", version: 1, exportedAt: new Date().toISOString(), events: eventCache }); }
+export async function importEvents(text: string): Promise<{ added: number; updated: number; skipped: number }> {
+  let data: unknown;
+  try { data = JSON.parse(text.trim()); } catch { throw new Error("That is not a J&K Calendar backup. Paste the whole text you exported."); }
+  const list = Array.isArray(data) ? data : (data as { app?: string; events?: unknown })?.app === "jk-calendar" ? (data as { events?: unknown }).events : null;
+  if (!Array.isArray(list)) throw new Error("That is not a J&K Calendar backup. Paste the whole text you exported.");
+  const byId = new Map(eventCache.map(event => [event.id, event]));
+  let added = 0, updated = 0, skipped = 0;
+  for (const item of list) {
+    try {
+      if (!item || typeof item.id !== "string") throw new Error();
+      const event: CalendarEvent = { ...validateEvent(item), id: item.id, updatedAt: typeof item.updatedAt === "number" ? item.updatedAt : 0 };
+      const existing = byId.get(event.id);
+      // The newer copy wins, so importing an old backup never overwrites later edits.
+      if (!existing) { byId.set(event.id, event); added++; }
+      else if ((event.updatedAt ?? 0) > (existing.updatedAt ?? 0)) { byId.set(event.id, event); updated++; }
+    } catch { skipped++; }
+  }
+  if (added || updated) { commit([...byId.values()]); await syncReminders(eventCache).catch(() => {}); }
+  return { added, updated, skipped };
+}
 export function useEvents() {
   const events = useSyncExternalStore(subscribe, () => eventCache, () => eventCache);
   return {

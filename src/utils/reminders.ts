@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import { buildReminderPlan, type CalendarEvent } from "./event-model";
 import { holidays2026 } from "../data/holidays-2026";
 import { buildHolidayReminderPlan } from "./holiday-reminders";
+import { buildDailyDatePlan } from "./daily-dates";
 import { getPreferences } from "./preferences";
 import { getReminderStatus, updateReminderStatus } from "./reminder-status";
 
@@ -24,11 +25,13 @@ export function syncReminders(events: CalendarEvent[]): Promise<void> {
   const run = async () => {
     if (Platform.OS === "web") return;
     const permission = await Notifications.getPermissionsAsync();
-    const { holidayReminders, holidayReminderHour } = getPreferences();
-    // Personal events (up to 40) plus the evening-before alerts for the next 20 holidays: under iOS's 64-alert cap.
+    const { holidayReminders, holidayReminderHour, dailyDates, hijriOffset } = getPreferences();
+    // Personal events (up to 40), the evening-before alerts for the next 20 holidays and, if chosen, the daily date
+    // notes: 3 days ahead on iOS to stay under its 64-alert cap, two weeks on Android.
     const plans = permission.granted ? [
       ...buildReminderPlan(events).map(plan => ({ id: plan.id, at: plan.at, title: plan.title, body: `${plan.date} at ${plan.time}`, data: { eventId: plan.eventId, date: plan.date } })),
       ...buildHolidayReminderPlan(holidays2026, holidayReminders, holidayReminderHour).map(plan => ({ id: plan.id, at: plan.at, title: plan.title, body: plan.body, data: { holidayDate: plan.date } })),
+      ...(dailyDates ? buildDailyDatePlan(holidays2026, hijriOffset, Platform.OS === "ios" ? 3 : 14) : []).map(plan => ({ id: plan.id, at: plan.at, title: plan.title, body: plan.body, data: { dailyDate: plan.date } })),
     ] : [];
     updateReminderStatus({ granted: permission.granted, expected: plans.length, error: null });
     const desired = new Set(plans.map(plan => plan.id));

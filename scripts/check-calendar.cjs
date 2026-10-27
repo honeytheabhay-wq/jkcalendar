@@ -47,6 +47,11 @@ async function main() {
    assert.equal(kashmiriPanchang(d('2026-03-18')).saptarishiYear,5101);assert(kashmiriPanchang(d('2027-04-07')).navreh);
    for(const [s,day,month] of [['2026-05-27',10,12],['2026-06-26',10,1],['2026-08-26',12,3]]){const h=hijriDate(d(s));assert.equal(h.day,day,s);assert.equal(h.month,month,s);}
    assert.equal(hijriDate(d('2026-03-21'),-2).month,10);assert.equal(hijriDate(d('2026-03-21'),-2).day,1);}
+  const {searchHolidays,holidayListText,googleCalendarUrl}=load('src/utils/holiday-share.ts');
+  assert.deepEqual(searchHolidays(holidays2026,'eid').map(h=>h.date),['2026-03-21','2026-05-27','2026-05-28','2026-08-26','2026-08-28']);
+  assert.equal(searchHolidays(holidays2026,'EID ul fitr').length,1);assert.equal(searchHolidays(holidays2026,'kishtwar').length,4);assert.equal(searchHolidays(holidays2026,'  ').length,0);
+  assert(holidayListText(holidays2026,2026).split('\n').length===51+5) // title, blank, 51 holidays, blank, moon note, footer;
+  assert(googleCalendarUrl(holidays2026.find(h=>h.name==='Diwali')).includes('dates=20261108/20261109'));
   const {buildHolidayReminderPlan}=load('src/utils/holiday-reminders.ts');
   {const now=new Date(2026,9,27,12),plan=buildHolidayReminderPlan(holidays2026,'general',19,now);
    assert(plan.length>0&&plan.length<=20);assert(plan.every(p=>p.at>now.getTime()&&new Date(p.at).getHours()===19));

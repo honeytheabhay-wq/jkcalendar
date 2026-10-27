@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Pressable, ScrollView, Share, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 
 import { holidays2026, type Holiday } from "@/data/holidays-2026";
@@ -8,6 +8,7 @@ import { radii, shadows, spacing, type ThemeColors, useCalendarTheme } from "@/t
 import { HolidayDetails } from "@/components/holiday-details";
 import { holidayYearLoaded } from "@/utils/holiday-info";
 import { useToday } from "@/utils/today";
+import { holidayListText, searchHolidays } from "@/utils/holiday-share";
 
 const kindLabels = { general: "J&K", provincial: "Provincial", local: "Local", restricted: "Restricted" } as const;
 
@@ -37,6 +38,9 @@ export function YearHolidayList({ year }: { year: number }) {
   const todayKey = toDateKey(useToday());
   const [detail, setDetail] = useState<Holiday | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [query, setQuery] = useState("");
+  const results = searchHolidays(holidays2026, query);
+  const daysAway = (key: string) => { const d = Math.round((fromDateKey(key).getTime() - fromDateKey(todayKey).getTime()) / 86_400_000); return d === 0 ? "Today" : d === 1 ? "Tomorrow" : `In ${d} days`; };
   const holidays = holidays2026.filter((holiday) => holiday.date.startsWith(`${year}-`)).sort((a, b) => a.date.localeCompare(b.date));
   const upcoming = holidays.filter((holiday) => holiday.date >= todayKey);
   const past = holidays.filter((holiday) => holiday.date < todayKey).reverse();
@@ -47,11 +51,16 @@ export function YearHolidayList({ year }: { year: number }) {
     <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.title}>Holidays this year</Text>
+        {holidayYearLoaded(year) ? <Pressable accessibilityRole="button" accessibilityLabel={`Share the ${year} holiday list`} onPress={() => void Share.share({ message: holidayListText(holidays, year) }).catch(() => {})} style={({ pressed }) => [styles.shareButton, pressed && styles.pressed]}><Text style={styles.shareText}>Share</Text></Pressable> : null}
         <Pressable disabled={!holidayYearLoaded(year)} accessibilityRole="button" accessibilityLabel={holidayYearLoaded(year) ? `${holidays.length} entries. ${expanded ? "Hide" : "Show"} all holidays in one scrollable list` : `Holiday schedule unavailable for ${year}`} accessibilityState={{ expanded, disabled: !holidayYearLoaded(year) }} onPress={() => setExpanded((current) => !current)} style={({ pressed }) => [styles.countButton, pressed && styles.pressed]}>
           <Text style={styles.count}>{holidayYearLoaded(year) ? `${holidays.length} entries ${expanded ? "⌃" : "⌄"}` : "Unavailable"}</Text>
         </Pressable>
       </View>
-      {!holidayYearLoaded(year) ? <Text style={styles.empty}>Holiday schedule unavailable for {year}.</Text> : expanded ? <View style={styles.dropdown}>
+      <TextInput value={query} onChangeText={setQuery} placeholder="Search holidays, e.g. Eid" placeholderTextColor={colors.muted} accessibilityLabel="Search holidays by name or area" returnKeyType="search" clearButtonMode="while-editing" autoCorrect={false} style={styles.search} />
+      {query.trim() ? <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{results.length ? `${results.length} found` : "No holiday matches. Try a shorter word."}</Text>
+        {results.map((holiday, index) => <View key={`search-${holiday.date}-${holiday.name}-${index}`} style={{gap:2}}><HolidayRow holiday={holiday} past={holiday.date < todayKey} colors={colors} onOpen={setDetail} />{holiday.date >= todayKey ? <Text style={styles.away}>{daysAway(holiday.date)}</Text> : null}</View>)}
+      </View> : !holidayYearLoaded(year) ? <Text style={styles.empty}>Holiday schedule unavailable for {year}.</Text> : expanded ? <View style={styles.dropdown}>
         <Text style={styles.sectionTitle}>All {holidays.length} holidays · Scroll to browse</Text>
         <ScrollView key={year} nestedScrollEnabled showsVerticalScrollIndicator style={[styles.dropdownScroll, { height: viewportHeight }]} contentContainerStyle={styles.dropdownContent}>
           {holidays.map((holiday, index) => <HolidayRow key={`all-${holiday.date}-${holiday.name}-${index}`} holiday={holiday} past={holiday.date < todayKey} colors={colors} onOpen={setDetail} compact />)}
@@ -76,7 +85,11 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     card: { width: "100%", maxWidth: 620, gap: spacing.lg, padding: 18, backgroundColor: colors.surface, borderRadius: radii.card, borderCurve: "continuous", boxShadow: shadows.card },
     header: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 },
-    title: { color: colors.ink, fontSize: 17, fontWeight: "800" },
+    title: { flex: 1, color: colors.ink, fontSize: 17, fontWeight: "800" },
+    shareButton: { minHeight: 40, justifyContent: "center", paddingHorizontal: 12, backgroundColor: colors.primarySoft, borderRadius: radii.full },
+    shareText: { color: colors.primaryDark, fontSize: 11, fontWeight: "800" },
+    search: { minHeight: 44, paddingHorizontal: 14, borderRadius: radii.full, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.background, color: colors.ink, fontSize: 14 },
+    away: { alignSelf: "flex-end", color: colors.primaryDark, fontSize: 10, fontWeight: "700", paddingRight: 6 },
     countButton: { minHeight: 40, justifyContent: "center", paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: radii.full },
     count: { color: colors.onPrimary, fontSize: 11, fontWeight: "800" },
     pressed: { opacity: 0.75 },

@@ -136,7 +136,7 @@ async function main() {
   const post=new URLSearchParams(largerPageRequest(html));assert.equal(post.get('__VIEWSTATE'),'a&b');assert.equal(post.get('ctl00$conPage$ddlPageSize'),'100');
   const {widgetData,widgetTimeline}=load('src/utils/widget-data.ts');
   const w=widgetData([{id:'w',title:'Review',date:'2026-10-26',time:'14:00'}],reference);assert.equal(w.holiday,'Accession Day');assert.equal(w.eventTitle,'Review');
-  assert.match(w.hijri,/AH$/);assert.match(w.pandit,/Saptarishi 5102$/);assert.match(w.hindi,/विक्रम संवत 2083$/);
+  assert.match(w.hijri,/AH$/);assert.match(w.pandit,/Saptarishi 5102$/);assert.equal(w.hindi,'Vikram Samvat 2083');
   const timeline=widgetTimeline([{id:'w',title:'Review',date:'2026-10-26',time:'14:00'}],reference);assert(timeline.length<=64);assert(timeline.at(-1).props.expired);assert(timeline.some(t=>t.date.getHours()===14&&t.date.getMinutes()===1));
   assert.equal(widgetData([],new Date(2027,0,1)).holiday,'Schedule unavailable beyond 2026');
   assert(holidaySource(holidays2026.find(h => h.name === 'Urs Sheikh Noor-ud-Din Sahib')).url.endsWith('O45638'));

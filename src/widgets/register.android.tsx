@@ -10,7 +10,8 @@ if (Constants.executionEnvironment !== ExecutionEnvironment.StoreClient) {
   const { registerWidgetTaskHandler } = require("react-native-android-widget") as typeof import("react-native-android-widget");
   registerWidgetTaskHandler(async props => {
     if(props.widgetInfo.widgetName!=="JKCalendarToday"||props.widgetAction==="WIDGET_DELETED") return;
-    const { TodayWidget }=await import("./today-widget.android");
+    // require, not import(): production bundles cannot fetch split chunks on native, so import() failed there.
+    const { TodayWidget }=require("./today-widget.android") as typeof import("./today-widget.android");
     props.renderWidget(<TodayWidget data={widgetData(readWidgetEvents(),new Date(),readWidgetPalette(),readWidgetHijriOffset())} />);
   });
 }

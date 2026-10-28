@@ -1,7 +1,7 @@
 import { holidays2026 } from "../data/holidays-2026";
 import { fromDateKey, toDateKey } from "./dates";
 import { normaliseTime, occursOn, type CalendarEvent } from "./event-model";
-import { hijriDate, hindiLabel, kashmiriPanchang } from "./regional-calendars";
+import { hijriDate, kashmiriPanchang, vikramSamvat } from "./regional-calendars";
 
 type Hex = `#${string}`;
 export type WidgetData = { dateLabel: string; hijri: string; pandit: string; hindi: string; holidayHeading: string; holiday: string; holidayNote: string; eventTitle: string; eventWhen: string; background: Hex; ink: Hex; accent: Hex; expired?: boolean };
@@ -18,9 +18,10 @@ export function widgetData(events: CalendarEvent[], at = new Date(), palette: Wi
     const candidates = events.filter(e => occursOn(e, date)).map(e => { let time: string | undefined; try { time=normaliseTime(e.time); } catch {} return { title: e.title, date, time }; }).filter(e => !e.time || date > key || e.time >= `${String(at.getHours()).padStart(2,"0")}:${String(at.getMinutes()).padStart(2,"0")}`).sort((a,b) => (a.time ?? "").localeCompare(b.time ?? ""));
     nextEvent=candidates[0];
   }
-  // Today's three calendars, short enough for one widget line each.
+  // Today's calendars, short enough for one widget line each. The Hindi tithi matches the Kashmiri Pandit one, so the
+  // widget adds only the Vikram Samvat year, in English.
   const h = hijriDate(at, hijriOffset), p = kashmiriPanchang(at);
-  const dates = { hijri: `${h.day} ${h.monthName} ${h.year} AH`, pandit: `${p.adhik ? "Adhik " : ""}${p.kashmiriMonth} ${p.paksha} ${p.tithiName} · Saptarishi ${p.saptarishiYear}`, hindi: hindiLabel(p) };
+  const dates = { hijri: `${h.day} ${h.monthName} ${h.year} AH`, pandit: `${p.adhik ? "Adhik " : ""}${p.kashmiriMonth} ${p.paksha} ${p.tithiName} · Saptarishi ${p.saptarishiYear}`, hindi: `Vikram Samvat ${vikramSamvat(p)}` };
   return { ...dates, dateLabel: at.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }), holidayHeading: holidays.length ? "Today’s holiday" : "Next listed holiday", holiday: holiday ? holiday.name + (holidays.length>1 ? ` +${holidays.length-1}` : "") : "Schedule unavailable beyond 2026", holidayNote: holiday ? `${holiday.date.slice(8)} ${fromDateKey(holiday.date).toLocaleDateString("en-IN",{month:"short"})} · ${holiday.scope}${holiday.subjectToMoon ? " · Tentative" : ""}` : "Open app for details", eventTitle: nextEvent?.title.slice(0,100) ?? "No plans in the next 31 days", eventWhen: nextEvent ? `${nextEvent.date===key ? "Today" : fromDateKey(nextEvent.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})} · ${nextEvent.time ?? "All day"}` : "Tap + to add an event", background: hex(palette.background,"#F4F9FA"), ink: hex(palette.ink,"#233642"), accent: hex(palette.primary,"#347B9B") };
 }
 export function widgetTimeline(events: CalendarEvent[], now = new Date(), palette?: WidgetPalette, hijriOffset = -1) {

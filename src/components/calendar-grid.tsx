@@ -277,12 +277,12 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
 // bubbles on every theme change. Android bubbles go without; the gloss layers still give the glass look.
 const lightShadows = Platform.OS === "android";
 const weekendTint = { fill: "#F0913A2E", line: "#E07B2A66" };
-// Holidays: an emerald rim fading to the centre. The centre is the plain surface, or the weekend's pale orange when the
+// Holidays: a purple rim fading to the centre. The centre is the plain surface, or the weekend's pale orange when the
 // holiday falls on a Saturday or Sunday, so it reads as both.
-const emerald = { light: "#1E9E6A", dark: "#4FD1A0" };
+const holidayRim = { light: "#7B4BC4", dark: "#B79CFF" };
 const isDarkSurface = (hex: string) => { const n = parseInt(hex.slice(1, 7), 16); return ((n >> 16) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000 < 128; };
 export function holidayGlow(colors: ThemeColors, weekend = false) {
-  const rim = isDarkSurface(colors.surface) ? emerald.dark : emerald.light, centre = weekend ? weekendTint.fill : colors.surface;
+  const rim = isDarkSurface(colors.surface) ? holidayRim.dark : holidayRim.light, centre = weekend ? weekendTint.fill : colors.surface;
   return { backgroundColor: colors.surface, borderColor: rim, borderWidth: 1.5, experimental_backgroundImage: `radial-gradient(ellipse at center, ${centre} 0%, ${centre} 30%, ${rim}99 100%)` };
 }
 function createStyles(colors: ThemeColors) {

@@ -15,6 +15,7 @@ import { monthLabel, toDateKey } from "@/utils/dates";
 import { useEvents } from "@/utils/events";
 import { setPreference } from "@/utils/preferences";
 import { switchThemeWithFade } from "@/components/theme-fade";
+import { AppLogo } from "@/components/app-logo";
 import { holidayYearLoaded } from "@/utils/holiday-info";
 import { useToday } from "@/utils/today";
 import { useOrderStatus } from "@/utils/official-orders";
@@ -136,7 +137,7 @@ export function Home() {
 
   return (
     <SeasonalScreen>
-    <Stack.Screen options={{ headerRight: () => <Pressable accessibilityRole="button" accessibilityLabel={dark ? "Switch to light mode" : "Switch to dark mode"} hitSlop={8} onPress={() => switchThemeWithFade(dark ? lightBackground(season.id) : darkBackground(), () => { if (dark) switchToLight(); else setPreference("appearance", "dark"); })} style={styles.modeButton}><Text allowFontScaling={false} style={styles.modeText}>{dark ? "☀" : "☾"}</Text></Pressable> }} />
+    <Stack.Screen options={{ headerTitle: () => <View style={styles.brand}><AppLogo /><Text style={styles.brandText}>J&K Calendar</Text></View>, headerRight: () => <Pressable accessibilityRole="button" accessibilityLabel={dark ? "Switch to light mode" : "Switch to dark mode"} hitSlop={8} onPress={() => switchThemeWithFade(dark ? lightBackground(season.id) : darkBackground(), () => { if (dark) switchToLight(); else setPreference("appearance", "dark"); })} style={styles.modeButton}><Text allowFontScaling={false} style={styles.modeText}>{dark ? "☀" : "☾"}</Text></Pressable> }} />
     <ScrollView scrollEnabled={!(calendarView === "yearly" && yearZoomed)} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
       <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleOne]} />
       <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleTwo]} />
@@ -221,6 +222,8 @@ function createStyles(colors: ThemeColors, narrow: boolean) {
     hidden: { display: "none" },
     // Off screen and invisible rather than display: none, so the hidden year can still measure its text and lay out.
     offscreen: { position: "absolute", top: 0, left: -10000, opacity: 0 },
+    brand: { flexDirection: "row", alignItems: "center", gap: 10 },
+    brandText: { color: colors.ink, fontSize: 20, fontWeight: "800" },
     modeButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: radii.full, backgroundColor: colors.primarySoft },
     modeText: { color: colors.primaryDark, fontSize: 20, lineHeight: 24 },
     colourText: { color: colors.primaryDark, fontSize: 11, fontWeight: "700" },

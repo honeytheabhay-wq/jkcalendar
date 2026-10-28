@@ -1,7 +1,19 @@
 import type { SeasonId } from "./seasons";
 
 export type SeasonalMotionLevel = "off" | "subtle" | "lively";
-export type SeasonalEffect = "petal" | "chinar" | "mote" | "sunglow" | "mist" | "rain" | "sparkle" | "snow" | "flake";
+export type SeasonalEffect = "petal" | "chinar" | "mote" | "sunglow" | "mist" | "rain" | "sparkle" | "snow" | "flake" | "ember" | "smoke" | "frost";
+// Trial styles for Wand (early winter), chosen in Settings while the final look is decided.
+export type WandStyle = "snow" | "snow-embers" | "embers" | "leaves" | "fog" | "frost" | "smoke";
+export const wandStyles = [{value:"snow",label:"Snow dust"},{value:"snow-embers",label:"Snow + embers"},{value:"embers",label:"Kangri embers"},{value:"leaves",label:"Last chinar leaves"},{value:"fog",label:"Dal Lake fog"},{value:"frost",label:"Frosty window"},{value:"smoke",label:"Chimney smoke"}] as const;
+const wandEffects:Record<WandStyle,SeasonalEffect[]>={
+  "snow":["mist","snow","snow","sparkle","snow","mist","snow","snow"],
+  "snow-embers":["snow","ember","snow","mist","snow","ember","snow","snow"],
+  "embers":["ember","ember","mist","ember","ember","ember","mist","ember"],
+  "leaves":["snow","chinar","snow","mist","snow","snow","chinar","snow"],
+  "fog":["mist","mist","snow","mist","mist","snow","mist","mist"],
+  "frost":["frost","frost","snow","frost","frost","snow","frost","frost"],
+  "smoke":["smoke","smoke","snow","smoke","smoke","snow","smoke","snow"],
+};
 type Scene = {kind:string;effects:SeasonalEffect[];colour:string;darkColour:string};
 export const seasonalMotionLevels = [{value:"off",label:"Off"},{value:"subtle",label:"Subtle"},{value:"lively",label:"Lively"}] as const;
 // Subtle is the default: Lively keeps more pieces moving, so the screen redraws more and uses more battery.
@@ -21,9 +33,9 @@ export const seasonalScenes:Record<SeasonId,Scene>={
 // Rain and snow need more, faster pieces to read as weather; everything else stays sparse and slow.
 const counts:Record<SeasonId,{subtle:number;lively:number}>={sonth:{subtle:8,lively:12},grishm:{subtle:8,lively:12},wahrath:{subtle:12,lively:18},harud:{subtle:8,lively:12},wand:{subtle:8,lively:12},shishur:{subtle:14,lively:20}};
 const positions=[2,88,12,76,26,64,40,54,6,82,32,69,18,94,47,59,9,72,36,85];
-export function seasonalParticles(id:SeasonId,level:SeasonalMotionLevel="subtle") {
+export function seasonalParticles(id:SeasonId,level:SeasonalMotionLevel="subtle",wandStyle:WandStyle="snow") {
   if(level==="off")return [];
-  const scene=seasonalScenes[id],lively=level==="lively";
+  const scene=id==="wand"?{...seasonalScenes.wand,effects:wandEffects[wandStyle]}:seasonalScenes[id],lively=level==="lively";
   const count=counts[id][lively?"lively":"subtle"];
   return Array.from({length:count},(_,index)=>{
     const kind=scene.effects[index%scene.effects.length];
@@ -41,15 +53,24 @@ export function seasonalParticles(id:SeasonId,level:SeasonalMotionLevel="subtle"
     if(kind==="snow"){width=4+(index%4)*2;height=width;duration=17000+(index%5)*2400;opacity=.58;floor=.55;if(index%3===1){colour="#9CC2DE";}}
     // Wand's snow dust: smaller, softer and slower than a snowfall (about 26–35 s to cross the screen).
     if(kind==="snow"&&id==="wand"){width=3+(index%3)*1.5;height=width;duration=26000+(index%4)*3000;opacity=.5;floor=.45;}
+    // Kangri embers: tiny warm sparks rising slowly from the bottom.
+    if(kind==="ember"){width=4+(index%3)*1.5;height=width;y=92+(index%3)*3;duration=20000+(index%4)*3000;opacity=.62;floor=.6;colour=index%2?"#F08A2C":"#E8592A";darkColour=index%2?"#FFB45C":"#FF8A4C";}
+    // Chimney smoke: soft grey wisps rising from the bottom, growing and fading.
+    if(kind==="smoke"){width=46+(index%3)*14;height=width*1.3;y=96;duration=24000+(index%3)*4000;opacity=.5;floor=.6;colour="#7E878F";darkColour="#C9CED3";}
+    // Frosty window: crystals near the screen edges that slowly grow and fade.
+    if(kind==="frost"){width=22+(index%3)*8;height=width;x=[1,90,4,86,2,91][index%6];y=[4,6,88,90,46,40][index%6];duration=19000+(index%3)*3000;opacity=.55;floor=.6;colour="#8DB7D2";darkColour="#E3F1FA";}
+    // Fog style: wider, softer bands across the whole screen.
+    if(kind==="mist"&&id==="wand"&&wandStyle==="fog"){width=320;height=110;x=left?-40:30;y=[6,30,58,82][index%4];duration=34000+(index%3)*4000;opacity=.34;}
+    if(kind==="chinar"&&id==="wand"){colour="#B5562E";darkColour="#EEC08C";width=16;height=16;duration=28000;}
     // Snowflakes: sizes from about 9 to 30 and fall times from about 15 to 28 s, so they never move in step.
     if(kind==="flake"){width=[9,14,20,11,26,16,12,22][index%8];height=width;duration=17000+((index*7)%8)*2000;opacity=.6;floor=.55;if(index%3===1){colour="#9CC2DE";}}
     const scale=lively?1.35:1.15;
-    if(kind!=="rain"&&kind!=="sunglow"&&kind!=="mist"&&kind!=="flake"){width*=scale;height*=scale;}
+    if(kind!=="rain"&&kind!=="sunglow"&&kind!=="mist"&&kind!=="flake"&&kind!=="smoke"){width*=scale;height*=scale;}
     // Rain falls in seconds, so its cycle is short; the "lively" speed-up is a gentler 0.85 for it.
     const speed=kind==="rain"?(lively?.85:1):(lively?.70:.9);
     return {kind,x,y,width,height,colour,darkColour,floor,phase:.08+((index*37+19)%100)/120,
       duration:Math.round(duration*speed),opacity:Math.min(.68,opacity*(lively?1.25:1.1)),
-      drift:(left?1:-1)*(kind==="petal"?28:kind==="chinar"?20:kind==="rain"?-60:kind==="mote"?14:kind==="snow"&&id==="wand"?18:12)};
+      drift:(left?1:-1)*(kind==="petal"?28:kind==="chinar"?20:kind==="rain"?-60:kind==="mote"||kind==="ember"?14:kind==="smoke"?22:kind==="snow"&&id==="wand"?18:12)};
   });
 }
 

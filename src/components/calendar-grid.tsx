@@ -281,8 +281,9 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
             <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${event.title}`} onPress={()=>router.push({pathname:"/add-event",params:{id:event.id}})} style={styles.popupEventText}><Text style={styles.popupName}>{event.title}</Text><Text style={styles.popupScope}>{event.time||"All day"}{event.repeat&&event.repeat!=="none"?` · ${event.repeat}`:""}{event.reminderMinutes!=null?" · Reminder":""} · Edit</Text></Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${event.title}`} onPress={()=>onDeleteEvent(event.id,event.title)} style={styles.popupClose}><Text style={{color:colors.danger,fontSize:20}}>×</Text></Pressable>
           </View>)}
-          <Pressable accessibilityRole="button" onPress={()=>router.push({pathname:"/add-event",params:{date:popupKey}})} style={styles.popupAdd}><Text style={styles.popupAddText}>＋ Add an event</Text></Pressable>
         </ScrollView>
+        {/* Pinned below the scrolling list, so it stays visible however many holidays and events the day has. */}
+        <Pressable accessibilityRole="button" onPress={()=>router.push({pathname:"/add-event",params:{date:popupKey}})} style={[styles.popupAdd, { marginTop: 8 }]}><Text style={styles.popupAddText}>＋ Add an event</Text></Pressable>
       </Pressable> : null}
       <HolidayDetails holiday={detail} onClose={() => setDetail(null)} />
     </View>

@@ -63,10 +63,10 @@ async function main() {
    assert(buildHolidayReminderPlan(holidays2026,'all',19,now).some(p=>p.date==='2026-11-10'&&/moon/.test(p.body)));
    assert.equal(buildHolidayReminderPlan(holidays2026,'off',19,now).length,0);}
   const {seasonalScenes,seasonalParticles,seasonMotionEnabled,normaliseSeasonalMotion,seasonFadeStops,seasonStrengthAt,seasonFadeMask}=load('src/utils/season-effects.ts');
-  for(const [id,kinds] of Object.entries({sonth:['petal','chinar'],grishm:['mote','sunglow'],wahrath:['mist','rain'],harud:['chinar'],wand:['ember','mist','snow'],shishur:['flake']})){
+  for(const [id,kinds] of Object.entries({sonth:['petal','chinar'],grishm:['mote','sunglow'],wahrath:['mist','rain'],harud:['chinar'],wand:['ember','frost','mist','snow'],shishur:['flake']})){
     const subtle=seasonalParticles(id),lively=seasonalParticles(id,'lively');
     assert.deepEqual([...new Set(subtle.map(p=>p.kind))].sort(),kinds.sort());
-    const weather=id==='wahrath'||id==='shishur';
+    const weather=id==='wahrath'||id==='shishur'||id==='wand';
     assert(subtle.length>=6&&subtle.length<=(weather?14:8));assert(lively.length>subtle.length&&lively.length<=(weather?20:12));
     assert(lively[0].opacity>subtle[0].opacity);assert(lively[0].duration<subtle[0].duration);
     // Rain is the one effect allowed to move quickly; everything else keeps a calm cycle of 15 s or more.

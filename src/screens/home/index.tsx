@@ -7,7 +7,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
-import { CalendarGrid } from "@/components/calendar-grid";
+import { CalendarGrid, holidayGlow } from "@/components/calendar-grid";
 import { SeasonalScreen } from "@/components/seasonal-screen";
 import { MonthJump } from "@/components/month-jump";
 import { holidayDateAppearance, todayDateColors, radii, shadows, spacing, darkBackground, lightBackground, switchToLight, type ThemeColors, useCalendarTheme, useSeason } from "@/theme";
@@ -257,7 +257,7 @@ function createStyles(colors: ThemeColors, narrow: boolean) {
     legendDot: { width: 7, height: 7, borderRadius: radii.full },
     legendText: { color: colors.muted, fontSize: 11, fontWeight: "600" },
     yearNote: { marginLeft: "auto", color: colors.muted, fontSize: 10 },
-    holidaySwatch: { width: 10, height: 10, borderRadius: 3, backgroundColor: colors.holiday },
+    holidaySwatch: { width: 10, height: 10, borderRadius: 3, ...holidayGlow(colors) },
     todaySwatch: { width: 10, height: 10, borderRadius: 3, backgroundColor: todayDateColors.fill, borderColor: todayDateColors.ring, borderWidth: 2 },
     buttonPressed: { opacity: 0.76, transform: [{ scale: 0.97 }] },
   });

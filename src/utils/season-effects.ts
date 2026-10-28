@@ -1,14 +1,14 @@
 import type { SeasonId } from "./seasons";
 
 export type SeasonalMotionLevel = "off" | "subtle" | "lively";
-export type SeasonalEffect = "petal" | "chinar" | "mote" | "sunglow" | "mist" | "rain" | "sparkle" | "snow" | "flake" | "ember" | "smoke" | "frost";
+export type SeasonalEffect = "petal" | "chinar" | "mote" | "sunglow" | "mist" | "rain" | "sparkle" | "snow" | "flake" | "ember" | "smoke" | "frost" | "hearth";
 // Trial styles for Wand (early winter), chosen in Settings while the final look is decided.
 export type WandStyle = "snow" | "snow-embers" | "embers" | "leaves" | "fog" | "frost" | "smoke";
 export const wandStyles = [{value:"snow",label:"Snow dust"},{value:"snow-embers",label:"Snow + embers"},{value:"embers",label:"Kangri embers"},{value:"leaves",label:"Last chinar leaves"},{value:"fog",label:"Dal Lake fog"},{value:"frost",label:"Frosty window"},{value:"smoke",label:"Chimney smoke"}] as const;
 const wandEffects:Record<WandStyle,SeasonalEffect[]>={
   "snow":["mist","snow","snow","sparkle","snow","mist","snow","snow"],
   "snow-embers":["snow","ember","snow","mist","snow","ember","snow","snow"],
-  "embers":["ember","ember","mist","ember","ember","ember","mist","ember"],
+  "embers":["hearth","ember","ember","ember","ember","ember","ember","ember"],
   "leaves":["snow","chinar","snow","mist","snow","snow","chinar","snow"],
   "fog":["mist","mist","snow","mist","mist","snow","mist","mist"],
   "frost":["frost","frost","snow","frost","frost","snow","frost","frost"],
@@ -54,7 +54,10 @@ export function seasonalParticles(id:SeasonId,level:SeasonalMotionLevel="subtle"
     // Wand's snow dust: smaller, softer and slower than a snowfall (about 26–35 s to cross the screen).
     if(kind==="snow"&&id==="wand"){width=3+(index%3)*1.5;height=width;duration=26000+(index%4)*3000;opacity=.5;floor=.45;}
     // Kangri embers: tiny warm sparks rising slowly from the bottom.
-    if(kind==="ember"){width=4+(index%3)*1.5;height=width;y=92+(index%3)*3;duration=20000+(index%4)*3000;opacity=.62;floor=.6;colour=index%2?"#F08A2C":"#E8592A";darkColour=index%2?"#FFB45C":"#FF8A4C";}
+    // Sharp flickering streaks, not soft dots, so they read as sparks rather than summer's motes.
+    if(kind==="ember"){width=2.4+(index%3)*0.6;height=width*3;y=94+(index%3)*2;duration=16000+(index%4)*2500;opacity=.68;floor=.7;colour=index%2?"#FF9A2E":"#F0542A";darkColour=index%2?"#FFC266":"#FF7A45";}
+    // The kangri's warmth: a wide, faint glow along the bottom edge that breathes slowly.
+    if(kind==="hearth"){width=420;height=200;x=50;y=88;duration=16000;opacity=.34;floor=.6;colour="#F08A3C";darkColour="#E0703A";}
     // Chimney smoke: soft grey wisps rising from the bottom, growing and fading.
     if(kind==="smoke"){width=46+(index%3)*14;height=width*1.3;y=96;duration=24000+(index%3)*4000;opacity=.5;floor=.6;colour="#7E878F";darkColour="#C9CED3";}
     // Frosty window: crystals near the screen edges that slowly grow and fade.
@@ -65,7 +68,7 @@ export function seasonalParticles(id:SeasonId,level:SeasonalMotionLevel="subtle"
     // Snowflakes: sizes from about 9 to 30 and fall times from about 15 to 28 s, so they never move in step.
     if(kind==="flake"){width=[9,14,20,11,26,16,12,22][index%8];height=width;duration=17000+((index*7)%8)*2000;opacity=.6;floor=.55;if(index%3===1){colour="#9CC2DE";}}
     const scale=lively?1.35:1.15;
-    if(kind!=="rain"&&kind!=="sunglow"&&kind!=="mist"&&kind!=="flake"&&kind!=="smoke"){width*=scale;height*=scale;}
+    if(kind!=="rain"&&kind!=="sunglow"&&kind!=="mist"&&kind!=="flake"&&kind!=="smoke"&&kind!=="hearth"&&kind!=="ember"){width*=scale;height*=scale;}
     // Rain falls in seconds, so its cycle is short; the "lively" speed-up is a gentler 0.85 for it.
     const speed=kind==="rain"?(lively?.85:1):(lively?.70:.9);
     return {kind,x,y,width,height,colour,darkColour,floor,phase:.08+((index*37+19)%100)/120,

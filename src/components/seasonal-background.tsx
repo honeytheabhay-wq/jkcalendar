@@ -21,7 +21,9 @@ function Motif({particle:p,colour}:{particle:Particle;colour:string}) {
   </View>;
   if(p.kind==="snow")return <View style={{width:w,height:h,borderRadius:w,backgroundColor:colour}} />;
   if(p.kind==="flake")return <Image source={snowIcon} style={{width:w,height:h,tintColor:colour}} />;
-  if(p.kind==="mote"||p.kind==="ember")return <Glow width={w} height={h} colour={colour} core />;
+  if(p.kind==="mote")return <Glow width={w} height={h} colour={colour} core />;
+  // A spark: a thin streak with a hot yellow core, no glow halo.
+  if(p.kind==="ember")return <View style={{width:w,height:h,borderRadius:w,backgroundColor:colour,alignItems:"center",justifyContent:"flex-start"}}><View style={{width:w*.55,height:h*.45,marginTop:1,borderRadius:w,backgroundColor:"#FFE38A"}} /></View>;
   if(p.kind==="frost")return <View style={{width:w,height:h,alignItems:"center",justifyContent:"center"}}>
     {[0,60,120].map(angle=><View key={angle} style={{position:"absolute",width:1.6,height:h,borderRadius:1,backgroundColor:colour,transform:[{rotate:`${angle}deg`}]}} />)}
   </View>;
@@ -56,7 +58,8 @@ function frame(p:Particle,progress:number,width:number,height:number) {
     case "mote": dy=-progress*height*.45; dx=wave*p.drift; scale=.85+.25*(.5+.5*Math.sin(progress*Math.PI*6)); break;
     case "mist": dx=(progress-.5)*p.drift*6; break;
     case "sunglow": scale=.92+.16*Math.sin(progress*Math.PI); life=.65+.35*Math.sin(progress*Math.PI); break;
-    case "ember": dy=-progress*height*.7; dx=wave*p.drift; scale=.8+.3*(.5+.5*Math.sin(progress*Math.PI*8)); break;
+    case "ember": { const zig=Math.sin(progress*Math.PI*7); dy=-progress*height*.5; dx=zig*p.drift*.7; rotate=zig*25; life=Math.min(1,progress*10,(1-progress)*2.5)*(.45+.55*Math.abs(Math.sin(progress*Math.PI*13))); break; }
+    case "hearth": dx=-p.width/2; scale=.95+.1*Math.sin(progress*Math.PI*2); life=.7+.3*Math.sin(progress*Math.PI*2); break;
     case "smoke": dy=-progress*height*.55; dx=wave*p.drift; scale=.6+progress*1.1; life=Math.min(1,progress*5)*(1-progress); break;
     case "frost": life=Math.sin(progress*Math.PI); scale=.4+.6*Math.sin(progress*Math.PI); rotate=progress*30; break;
     case "sparkle": { const twinkle=Math.pow(Math.abs(Math.sin(progress*Math.PI*2)),3); life=twinkle; scale=.35+.65*twinkle; rotate=progress*45; dx=wave*4; break; }

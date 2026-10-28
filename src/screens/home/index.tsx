@@ -186,7 +186,7 @@ export function Home() {
               <View style={styles.legendItem}><View style={styles.todaySwatch} /><Text style={styles.legendText}>Today</Text></View>
               <View style={styles.legendItem}><View style={styles.holidaySwatch} /><Text style={styles.legendText}>Holiday</Text></View>
               <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.primaryDark }]} /><Text style={styles.legendText}>Personal event</Text></View>
-              <View style={styles.legendItem}><View style={[styles.bankSwatch, { borderColor: bankTeal(colors) }]} /><Text style={styles.legendText}>Bank</Text></View>
+              <View style={styles.legendItem}><View style={[styles.bankSwatch, { borderColor: bankTeal(colors) }]} /><Text style={styles.legendText}>Bank holiday</Text></View>
               <Text style={styles.yearNote}>{holidayYearLoaded(viewMonth.getFullYear()) ? "Official list: 2026" : "Holiday schedule unavailable"}</Text>
             </View>
           </View>

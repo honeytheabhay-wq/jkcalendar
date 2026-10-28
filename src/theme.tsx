@@ -7,7 +7,7 @@ import { useSystemAccessibility } from "@/utils/system-accessibility";
 import { seasonOn, type Season, type SeasonId } from "@/utils/seasons";
 import { fromDateKey, toDateKey } from "@/utils/dates";
 
-export type ManualThemeName = "kashmir-bloom" | "dal-lake" | "saffron-dawn" | "glacier-mint" | "midnight-indigo";
+export type ManualThemeName = "kashmir-bloom" | "dal-lake" | "glacier-mint" | "midnight-indigo";
 export type ThemeName = ManualThemeName | SeasonId;
 export type GlassLevel = "subtle" | "standard" | "strong";
 export const todayDateColors = { fill: "#D9F4EC", ink: "#145B50", ring: "#1C8170" } as const;
@@ -84,26 +84,7 @@ export const themes: Record<ManualThemeName, { label: string; colors: ThemeColor
       onPrimary: "#FFFFFF",
     },
   },
-  "saffron-dawn": {
-    label: "Saffron Dawn",
-    colors: {
-      background: "#FFF9F2",
-      surface: "#FFFFFF",
-      ink: "#402F27",
-      muted: "#917E72",
-      primary: "#C66B2B",
-      primaryDark: "#91451F",
-      primarySoft: "#FBE6D4",
-      bubble: "#FFF0E0",
-      weekend: "#F8E8BA",
-      today: "#DDEBDD",
-      todayInk: "#356859",
-      holiday: "#B64C3B",
-      line: "#F0E3D7",
-      danger: "#B64C3B",
-      onPrimary: "#FFFFFF",
-    },
-  },
+
   "glacier-mint": {
     label: "Glacier Mint",
     colors: { background: "#EAF6F3", surface: "#FBFFFE", ink: "#163A3B", muted: "#5F7979", primary: "#188B86", primaryDark: "#0F6664", primarySoft: "#CFEBE5", bubble: "#E0F2EC", weekend: "#FFF0DF", today: "#D4EEDF", todayInk: "#286C50", holiday: "#C96850", line: "#AFD3C7", danger: "#A74545", onPrimary: "#FFFFFF" },

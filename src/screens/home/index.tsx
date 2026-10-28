@@ -11,12 +11,12 @@ import { CalendarGrid } from "@/components/calendar-grid";
 import { SeasonalScreen } from "@/components/seasonal-screen";
 import { MonthJump } from "@/components/month-jump";
 import { holidayDateAppearance, todayDateColors, radii, shadows, spacing, darkBackground, lightBackground, switchToLight, type ThemeColors, useCalendarTheme, useSeason } from "@/theme";
-import { monthLabel, toDateKey } from "@/utils/dates";
+import { fromDateKey, monthLabel, toDateKey } from "@/utils/dates";
 import { useEvents } from "@/utils/events";
 import { setPreference } from "@/utils/preferences";
 import { switchThemeWithFade } from "@/components/theme-fade";
 import { AppLogo } from "@/components/app-logo";
-import { holidayYearLoaded } from "@/utils/holiday-info";
+import { holidayYearLoaded, nextHoliday } from "@/utils/holiday-info";
 import { useToday } from "@/utils/today";
 import { useOrderStatus } from "@/utils/official-orders";
 import { MonthHolidays } from "./month-holidays";
@@ -55,6 +55,9 @@ export function Home() {
   const [viewMonth, setViewMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1, 12));
   const { events, deleteEvent } = useEvents();
   const { unseen } = useOrderStatus();
+  // Countdown to the next listed holiday (today counts as 0 days).
+  const countdown = useMemo(() => nextHoliday(today), [today]);
+  const countdownLabel = countdown ? `${countdown.holiday.name} ${countdown.remaining === 0 ? "is today" : countdown.remaining === 1 ? "is tomorrow" : `in ${countdown.remaining} days`}` : "";
   useEffect(()=>{setSeasonDateKey(toDateKey(seasonDateForMonth(viewMonth,today)));},[viewMonth.getFullYear(),viewMonth.getMonth(),today,setSeasonDateKey]);
   // Screen minus page padding (2 × 16) and card padding (2 × 10). The grid always fits; it never scrolls sideways.
   const contentWidth = Math.min(Math.max(width - 52, 238), 560);
@@ -138,17 +141,22 @@ export function Home() {
   return (
     <SeasonalScreen>
     <Stack.Screen options={{ headerTitle: () => <View style={styles.brand}><AppLogo /><Text style={styles.brandText}>J&K Calendar</Text></View>, headerRight: () => <Pressable accessibilityRole="button" accessibilityLabel={dark ? "Switch to light mode" : "Switch to dark mode"} hitSlop={8} onPress={() => switchThemeWithFade(dark ? lightBackground(season.id) : darkBackground(), () => { if (dark) switchToLight(); else setPreference("appearance", "dark"); })} style={styles.modeButton}><Text allowFontScaling={false} style={styles.modeText}>{dark ? "☀" : "☾"}</Text></Pressable> }} />
-    <ScrollView scrollEnabled={!(calendarView === "yearly" && yearZoomed)} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+    <ScrollView scrollEnabled={!(calendarView === "yearly" && yearZoomed)} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} stickyHeaderIndices={[2]}>
       <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleOne]} />
       <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleTwo]} />
 
-      <View style={styles.toolbar}>
+      {/* Stays pinned at the top while the page scrolls (stickyHeaderIndices: the third child). */}
+      <View style={styles.toolbarDock}><View style={styles.toolbar}>
         <ViewTabs value={calendarView} onChange={value => { setDetailsDate(null); setCalendarView(value); }} />
         <View style={styles.utilities}>
           <Pressable accessibilityRole="button" accessibilityState={{ expanded: coloursOpen }} onPress={() => setColoursOpen((open) => !open)} style={styles.colourButton}><View style={styles.utilityBubble}><Text style={styles.colourText}>Colours {coloursOpen ? "⌃" : "⌄"}</Text></View></Pressable>
           <Pressable accessibilityRole="button" onPress={()=>router.push("/settings")} style={styles.colourButton}><View style={styles.utilityBubble}><Text style={styles.colourText}>Settings</Text></View></Pressable>
         </View>
-      </View>
+      </View></View>
+      {countdown ? <Pressable accessibilityRole="button" accessibilityLabel={countdownLabel} onPress={() => { const date = fromDateKey(countdown.holiday.date); selectDate(date); setCalendarView("monthly"); setDetailsDate(new Date(date)); }} style={({ pressed }) => [styles.countdown, pressed && styles.buttonPressed]}>
+        <Text style={styles.countdownDays}>{countdown.remaining === 0 ? "Today" : countdown.remaining === 1 ? "Tomorrow" : `${countdown.remaining} days`}</Text>
+        <View style={{ flex: 1 }}><Text numberOfLines={1} style={styles.countdownName}>{countdown.holiday.name}</Text><Text numberOfLines={1} style={styles.countdownWhen}>{fromDateKey(countdown.holiday.date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })} · {countdown.holiday.scope}{countdown.holiday.subjectToMoon ? " · moon sighting" : ""}</Text></View>
+      </Pressable> : null}
       {coloursOpen ? <View style={styles.themePanel}><ThemePicker /></View> : null}
       {unseen.length ? <Pressable accessibilityRole="button" onPress={() => router.push("/settings")} style={({ pressed }) => [styles.orderBanner, pressed && styles.buttonPressed]}>
         <Text style={styles.orderBannerTitle}>{unseen.length === 1 ? "New official holiday order" : `${unseen.length} new official holiday orders`}</Text>
@@ -210,7 +218,13 @@ function createStyles(colors: ThemeColors, narrow: boolean) {
     decorativeBubble: { position: "absolute", borderRadius: radii.full, opacity: 0.62 },
     bubbleOne: { width: 170, height: 170, top: -55, right: -70, backgroundColor: colors.today },
     bubbleTwo: { width: 120, height: 120, top: 210, left: -75, backgroundColor: colors.primarySoft },
-    toolbar: { width:"100%", maxWidth:620, flexDirection:"row", flexWrap:"wrap", alignItems:"center", justifyContent:"space-between", gap:4 },
+    toolbarDock: { width:"100%", alignItems:"center", paddingVertical:4, zIndex:20 },
+    // A floating pill: surface background and a soft shadow so it reads above the page as it scrolls under it.
+    toolbar: { width:"100%", maxWidth:620, flexDirection:"row", flexWrap:"wrap", alignItems:"center", justifyContent:"space-between", gap:4, paddingHorizontal:6, borderRadius:radii.full, backgroundColor:colors.surface, boxShadow:`0 4px 14px ${colors.primary}22` },
+    countdown: { width:"100%", maxWidth:620, flexDirection:"row", alignItems:"center", gap:12, paddingVertical:10, paddingHorizontal:14, borderRadius:18, backgroundColor:colors.surface },
+    countdownDays: { minWidth:72, textAlign:"center", paddingVertical:6, paddingHorizontal:10, borderRadius:radii.full, overflow:"hidden", backgroundColor:colors.holiday, color:colors.onPrimary, fontSize:13, fontWeight:"800" },
+    countdownName: { color:colors.ink, fontSize:15, fontWeight:"800" },
+    countdownWhen: { color:colors.muted, fontSize:12 },
     utilities: { flexDirection:"row", gap:5, marginLeft:"auto" },
     themePanel: { width:"100%", maxWidth:620 },
     orderBanner: { width:"100%", maxWidth:620, gap:3, padding:14, borderRadius:18, backgroundColor:colors.holiday },

@@ -14,7 +14,7 @@ import { officialOrdersUrl } from "@/utils/official-orders-model";
 import { widgetData } from "@/utils/widget-data";
 import { syncWidgets } from "@/widgets/sync";
 import { labelLanguages } from "@/utils/regional-labels";
-import { seasonalMotionLevels, wandStyles } from "@/utils/season-effects";
+import { seasonalMotionLevels } from "@/utils/season-effects";
 import { hijriDate, hijriLabel, hijriOffsets, hindiLabel, kashmiriPanchang, panchangLabel } from "@/utils/regional-calendars";
 import { SeasonalScreen } from "@/components/seasonal-screen";
 
@@ -51,9 +51,6 @@ export default function SettingsRoute() {
       <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Seasonal animation</Text>
       {choice(seasonalMotionLevels,preferences.seasonalMotion,value=>save(()=>setPreference("seasonalMotion",value)))}
       {note("Seasonal effects cover the whole page, including Settings and event forms. Lively adds more movement; the centre stays softer. Reduced motion and high contrast turn effects off.")}
-      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Winter (Wand) style · trial</Text>
-      {choice(wandStyles,preferences.wandStyle,value=>save(()=>setPreference("wandStyle",value)))}
-      {note("Shown from mid-November to mid-January. Pick one, then swipe to November on the calendar to see it.")}
       <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Extra date labels</Text>
       {choice(labelLanguages,preferences.labelLanguage,value=>save(()=>setPreference("labelLanguage",value)))}
       {note("English headings stay visible. Optional Kashmiri or Dogri month and full-date labels work offline.")}

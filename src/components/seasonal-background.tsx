@@ -24,9 +24,6 @@ function Motif({particle:p,colour}:{particle:Particle;colour:string}) {
   if(p.kind==="mote")return <Glow width={w} height={h} colour={colour} core />;
   // A spark: a thin streak with a hot yellow core, no glow halo.
   if(p.kind==="ember")return <View style={{width:w,height:h,borderRadius:w,backgroundColor:colour,alignItems:"center",justifyContent:"flex-start"}}><View style={{width:w*.55,height:h*.45,marginTop:1,borderRadius:w,backgroundColor:"#FFE38A"}} /></View>;
-  if(p.kind==="frost")return <View style={{width:w,height:h,alignItems:"center",justifyContent:"center"}}>
-    {[0,60,120].map(angle=><View key={angle} style={{position:"absolute",width:1.6,height:h,borderRadius:1,backgroundColor:colour,transform:[{rotate:`${angle}deg`}]}} />)}
-  </View>;
   if(p.kind==="sparkle")return <View style={{width:w,height:h,alignItems:"center",justifyContent:"center"}}>
     <View style={{position:"absolute",width:1.6,height:h,borderRadius:1,backgroundColor:colour}} />
     <View style={{position:"absolute",width:w,height:1.6,borderRadius:1,backgroundColor:colour}} />
@@ -59,9 +56,6 @@ function frame(p:Particle,progress:number,width:number,height:number) {
     case "mist": dx=(progress-.5)*p.drift*6; break;
     case "sunglow": scale=.92+.16*Math.sin(progress*Math.PI); life=.65+.35*Math.sin(progress*Math.PI); break;
     case "ember": { const zig=Math.sin(progress*Math.PI*7); dy=-progress*height*.5; dx=zig*p.drift*.7; rotate=zig*25; life=Math.min(1,progress*10,(1-progress)*2.5)*(.45+.55*Math.abs(Math.sin(progress*Math.PI*13))); break; }
-    case "hearth": dx=-p.width/2; scale=.95+.1*Math.sin(progress*Math.PI*2); life=.7+.3*Math.sin(progress*Math.PI*2); break;
-    case "smoke": dy=-progress*height*.55; dx=wave*p.drift; scale=.6+progress*1.1; life=Math.min(1,progress*5)*(1-progress); break;
-    case "frost": life=Math.sin(progress*Math.PI); scale=.4+.6*Math.sin(progress*Math.PI); rotate=progress*30; break;
     case "sparkle": { const twinkle=Math.pow(Math.abs(Math.sin(progress*Math.PI*2)),3); life=twinkle; scale=.35+.65*twinkle; rotate=progress*45; dx=wave*4; break; }
   }
   return {dx,dy,rotate,scale,life};
@@ -70,7 +64,7 @@ const falls=new Set(["petal","chinar","snow","flake","rain"]);
 
 export function SeasonalBackground({modal=false}:{modal?:boolean}) {
   const {themeName,reduceMotion,highContrast}=useCalendarTheme(),{season}=useSeason();
-  const {seasonalMotion,wandStyle}=usePreferences();
+  const {seasonalMotion}=usePreferences();
   const obscured=useSeasonOverlayOpen();
   const [size,setSize]=useState({width:0,height:0}),[active,setActive]=useState(AppState.currentState==="active"),[focused,setFocused]=useState(false);
   const {width,height}=size;
@@ -79,7 +73,7 @@ export function SeasonalBackground({modal=false}:{modal?:boolean}) {
   const enabled=seasonalMotion!=="off"&&!reduceMotion&&!highContrast;
   const running=seasonMotionEnabled({enabled,reduceMotion,highContrast,active,focused,obscured:obscured&&!modal});
   // Keyframes are rebuilt only when the season, size or motion level changes, not on every screen update.
-  const particles=useMemo(()=>enabled&&height>0?seasonalParticles(season.id,seasonalMotion,wandStyle).map((p,index)=>{
+  const particles=useMemo(()=>enabled&&height>0?seasonalParticles(season.id,seasonalMotion).map((p,index)=>{
       const falling=falls.has(p.kind);
       const animationName:CSSAnimationKeyframes={};
       for(let step=0;step<=12;step++){
@@ -90,12 +84,12 @@ export function SeasonalBackground({modal=false}:{modal?:boolean}) {
         animationName[`${progress*100}%`]={opacity:p.opacity*life*Math.max(seasonStrengthAt(x,y),p.floor),transform:[{translateY:dy},{translateX:dx},{rotate:`${(Math.round(rotate*10)/10).toFixed(1)}deg`},{scale}]};
       }
       return {p,index,style:{position:"absolute" as const,left:`${p.x}%` as const,top:falling?0:height*p.y/100,width:p.width,height:p.height,animationName,animationDuration:p.duration,animationDelay:-p.phase*p.duration,animationIterationCount:"infinite" as const,animationTimingFunction:"linear" as const}};
-    }):null,[enabled,width,height,season.id,seasonalMotion,wandStyle]);
+    }):null,[enabled,width,height,season.id,seasonalMotion]);
   // Colour and play state are applied outside the keyframes, so dark/light switches only recolour the pieces and the
   // animations keep running instead of being rebuilt.
   const dark=themeName==="midnight-indigo";
   return <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onLayout={event=>setSize({width:event.nativeEvent.layout.width,height:event.nativeEvent.layout.height})} style={styles.layer}>
-    {particles?.map(({p,index,style})=><Animated.View key={`${season.id}-${seasonalMotion}-${wandStyle}-${index}`} style={[style,{animationPlayState:running?"running":"paused"}]}><Motif particle={p} colour={dark?p.darkColour:p.colour} /></Animated.View>)}
+    {particles?.map(({p,index,style})=><Animated.View key={`${season.id}-${seasonalMotion}-${index}`} style={[style,{animationPlayState:running?"running":"paused"}]}><Motif particle={p} colour={dark?p.darkColour:p.colour} /></Animated.View>)}
   </View>;
 }
 const styles=StyleSheet.create({layer:{...StyleSheet.absoluteFill,overflow:"hidden",zIndex:10000}});

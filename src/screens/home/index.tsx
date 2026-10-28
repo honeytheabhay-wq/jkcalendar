@@ -257,7 +257,7 @@ function createStyles(colors: ThemeColors, narrow: boolean) {
     legendDot: { width: 7, height: 7, borderRadius: radii.full },
     legendText: { color: colors.muted, fontSize: 11, fontWeight: "600" },
     yearNote: { marginLeft: "auto", color: colors.muted, fontSize: 10 },
-    holidaySwatch: { width: 10, height: 10, borderRadius: 3, ...holidayDateAppearance(colors) },
+    holidaySwatch: { width: 10, height: 10, borderRadius: 3, backgroundColor: colors.holiday },
     todaySwatch: { width: 10, height: 10, borderRadius: 3, backgroundColor: todayDateColors.fill, borderColor: todayDateColors.ring, borderWidth: 2 },
     buttonPressed: { opacity: 0.76, transform: [{ scale: 0.97 }] },
   });

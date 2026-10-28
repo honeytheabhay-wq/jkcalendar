@@ -159,11 +159,11 @@ const DayBubble = memo(function DayBubble({
             {date.getDate()}
           </Text>
           {lunarLeft || lunarRight ? <View pointerEvents="none" style={[styles.lunarRow, !(lunarLeft && lunarRight) && styles.lunarRowSingle]}>
-            {lunarLeft ? <Text allowFontScaling={false} numberOfLines={1} style={[styles.lunarText, selected && !holidayNames.length && styles.selectedLunar]}>{lunarLeft}</Text> : null}
-            {lunarRight ? <Text allowFontScaling={false} numberOfLines={1} style={[styles.lunarText, selected && !holidayNames.length && styles.selectedLunar]}>{lunarRight}</Text> : null}
+            {lunarLeft ? <Text allowFontScaling={false} numberOfLines={1} style={[styles.lunarText, (selected || holidayNames.length > 0) && styles.selectedLunar]}>{lunarLeft}</Text> : null}
+            {lunarRight ? <Text allowFontScaling={false} numberOfLines={1} style={[styles.lunarText, (selected || holidayNames.length > 0) && styles.selectedLunar]}>{lunarRight}</Text> : null}
           </View> : null}
           <View style={[styles.markers, (lunarLeft || lunarRight) && styles.markersTop]}>
-            {hasEvent ? <View style={[styles.marker, styles.eventDot, selected && styles.selectedDot, holidayNames.length > 0 && { backgroundColor: colors.ink }, today && !holidayNames.length && { backgroundColor: todayDateColors.ink }]} /> : null}
+            {hasEvent ? <View style={[styles.marker, styles.eventDot, selected && styles.selectedDot, holidayNames.length > 0 && { backgroundColor: colors.onPrimary }, today && !holidayNames.length && { backgroundColor: todayDateColors.ink }]} /> : null}
           </View>
         </Animated.View>
     </Pressable>
@@ -306,8 +306,9 @@ function createStyles(colors: ThemeColors) {
     selectedNumber: { color: colors.onPrimary, fontWeight: "800" },
     markers: { position: "absolute", bottom: 4, flexDirection: "row", gap: 3 },
     marker: { width: 5, height: 5, borderRadius: radii.full },
-    holidayBubble: holidayDateAppearance(colors),
-    holidayNumber: { color: colors.ink },
+    // Holidays are solid with white text, so they stand apart from the pale orange weekends.
+    holidayBubble: { backgroundColor: colors.holiday, borderColor: colors.holiday },
+    holidayNumber: { color: colors.onPrimary },
     eventDot: { backgroundColor: colors.primaryDark },
     selectedDot: { backgroundColor: colors.onPrimary },
     popupCard: { position: "absolute", zIndex: 100, elevation: 12, padding: 13, borderRadius: 18, backgroundColor: colors.surface, borderColor: colors.primarySoft, borderWidth: 1, boxShadow: `0 12px 30px ${colors.primary}35` },

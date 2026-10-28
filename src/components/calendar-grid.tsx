@@ -162,6 +162,8 @@ const DayBubble = memo(function DayBubble({
             {lunarLeft ? <Text allowFontScaling={false} numberOfLines={1} style={[styles.lunarText, selected && !holidayNames.length && styles.selectedLunar]}>{lunarLeft}</Text> : null}
             {lunarRight ? <Text allowFontScaling={false} numberOfLines={1} style={[styles.lunarText, selected && !holidayNames.length && styles.selectedLunar]}>{lunarRight}</Text> : null}
           </View> : null}
+          {/* More than one holiday on this date: a small purple count in the corner. */}
+          {holidayNames.length > 1 ? <View pointerEvents="none" style={[styles.holidayCount, { backgroundColor: holidayAccent(colors) }]}><Text allowFontScaling={false} style={styles.holidayCountText}>{holidayNames.length}</Text></View> : null}
           <View style={[styles.markers, (lunarLeft || lunarRight) && styles.markersTop]}>
             {hasEvent ? <View style={[styles.marker, styles.eventDot, selected && styles.selectedDot, holidayNames.length > 0 && { backgroundColor: colors.ink }, today && !holidayNames.length && { backgroundColor: todayDateColors.ink }]} /> : null}
           </View>
@@ -338,6 +340,8 @@ function createStyles(colors: ThemeColors) {
     popupScroll: { flexShrink: 1, marginTop: 8 },
     popupHoliday: { gap: 2, padding: 8, borderRadius: 12, borderWidth: 1 },
     calTag: { fontWeight: "800" },
+    holidayCount: { position: "absolute", top: 3, left: 3, minWidth: 14, height: 14, paddingHorizontal: 3, borderRadius: 7, alignItems: "center", justifyContent: "center" },
+    holidayCountText: { color: "#FFFFFF", fontSize: 9, lineHeight: 11, fontWeight: "800" },
     popupLink: { color: colors.primaryDark, fontWeight: "700" },
     popupName: { color: colors.primaryDark, fontSize: 13, lineHeight: 18, fontWeight: "700" },
     popupScope: { color: colors.muted, fontSize: 11, lineHeight: 16 },

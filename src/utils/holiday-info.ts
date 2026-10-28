@@ -16,5 +16,7 @@ export function nextHoliday(today: Date) {
   if (!holiday) return null;
   const [year, month, day] = holiday.date.split("-").map(Number);
   const remaining = Math.round((Date.UTC(year, month - 1, day) - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / 86_400_000);
-  return { holiday, remaining };
+  // Every holiday on that date, so the countdown can show "Mahanavami & Dussehra".
+  const sameDay = holidays2026.filter((item) => item.date === holiday.date);
+  return { holiday, remaining, names: [...new Set(sameDay.map((item) => item.name))].join(" & ") };
 }

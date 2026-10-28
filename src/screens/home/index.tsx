@@ -58,7 +58,7 @@ export function Home() {
   const { unseen } = useOrderStatus();
   // Countdown to the next listed holiday (today counts as 0 days).
   const countdown = useMemo(() => nextHoliday(today), [today]);
-  const countdownLabel = countdown ? `${countdown.holiday.name} ${countdown.remaining === 0 ? "is today" : countdown.remaining === 1 ? "is tomorrow" : `in ${countdown.remaining} days`}` : "";
+  const countdownLabel = countdown ? `${countdown.names} ${countdown.remaining === 0 ? "is today" : countdown.remaining === 1 ? "is tomorrow" : `in ${countdown.remaining} days`}` : "";
   useEffect(()=>{setSeasonDateKey(toDateKey(seasonDateForMonth(viewMonth,today)));},[viewMonth.getFullYear(),viewMonth.getMonth(),today,setSeasonDateKey]);
   // Screen minus page padding (2 × 16) and card padding (2 × 10). The grid always fits; it never scrolls sideways.
   const contentWidth = Math.min(Math.max(width - 52, 238), 560);
@@ -154,7 +154,7 @@ export function Home() {
       </View></View>
       {countdown ? <Pressable accessibilityRole="button" accessibilityLabel={countdownLabel} onPress={() => { const date = fromDateKey(countdown.holiday.date); selectDate(date); setCalendarView("monthly"); setDetailsDate(new Date(date)); }} style={({ pressed }) => [styles.countdown, pressed && styles.buttonPressed]}>
         <Text style={styles.countdownDays}>{countdown.remaining === 0 ? "Today" : countdown.remaining === 1 ? "Tomorrow" : `${countdown.remaining} days`}</Text>
-        <View style={{ flex: 1 }}><Text numberOfLines={1} style={styles.countdownName}>{countdown.holiday.name}</Text><Text numberOfLines={1} style={styles.countdownWhen}>{fromDateKey(countdown.holiday.date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })} · {countdown.holiday.scope}{countdown.holiday.subjectToMoon ? " · moon sighting" : ""}</Text></View>
+        <View style={{ flex: 1 }}><Text numberOfLines={1} style={styles.countdownName}>{countdown.names}</Text><Text numberOfLines={1} style={styles.countdownWhen}>{fromDateKey(countdown.holiday.date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })} · {countdown.holiday.scope}{countdown.holiday.subjectToMoon ? " · moon sighting" : ""}</Text></View>
         <Pressable accessibilityRole="button" accessibilityLabel={`Share ${countdown.holiday.name}`} hitSlop={8} onPress={() => { void Share.share({ message: holidayText(countdown.holiday) }).catch(() => {}); }} style={styles.countdownShare}><Text style={styles.countdownShareText}>Share</Text></Pressable>
       </Pressable> : null}
       {coloursOpen ? <View style={styles.themePanel}><ThemePicker /></View> : null}

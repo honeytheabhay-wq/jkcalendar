@@ -145,7 +145,7 @@ const DayBubble = memo(function DayBubble({
             today && styles.todayBubble,
             selected && styles.selectedBubble,
             reduceTransparency && {backgroundColor:selected?colors.primary:today?colors.today:weekend?colors.weekend:colors.bubble},
-            holidayNames.length > 0 && styles.holidayBubble,
+            holidayNames.length > 0 && (weekend ? styles.weekendHolidayBubble : styles.holidayBubble),
             holidayNames.length > 0 && selected && { borderColor: colors.primaryDark, borderWidth: 2.5 },
             today && styles.todayOutline,
             today && !holidayNames.length && { backgroundColor: todayDateColors.fill },
@@ -276,10 +276,15 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
 // Box shadows are costly on Android: redrawn while the season layer animates above the grid and rebuilt for all 126
 // bubbles on every theme change. Android bubbles go without; the gloss layers still give the glass look.
 const lightShadows = Platform.OS === "android";
-export function holidayGlow(colors: ThemeColors) {
-  return { backgroundColor: colors.surface, borderColor: colors.danger, borderWidth: 1.5, experimental_backgroundImage: `radial-gradient(ellipse at center, ${colors.surface} 0%, ${colors.surface} 30%, ${colors.danger}99 100%)` };
-}
 const weekendTint = { fill: "#F0913A2E", line: "#E07B2A66" };
+// Holidays: an emerald rim fading to the centre. The centre is the plain surface, or the weekend's pale orange when the
+// holiday falls on a Saturday or Sunday, so it reads as both.
+const emerald = { light: "#1E9E6A", dark: "#4FD1A0" };
+const isDarkSurface = (hex: string) => { const n = parseInt(hex.slice(1, 7), 16); return ((n >> 16) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000 < 128; };
+export function holidayGlow(colors: ThemeColors, weekend = false) {
+  const rim = isDarkSurface(colors.surface) ? emerald.dark : emerald.light, centre = weekend ? weekendTint.fill : colors.surface;
+  return { backgroundColor: colors.surface, borderColor: rim, borderWidth: 1.5, experimental_backgroundImage: `radial-gradient(ellipse at center, ${centre} 0%, ${centre} 30%, ${rim}99 100%)` };
+}
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     calendar: { gap: 16, position: "relative", zIndex: 5 },
@@ -309,8 +314,8 @@ function createStyles(colors: ThemeColors) {
     selectedNumber: { color: colors.onPrimary, fontWeight: "800" },
     markers: { position: "absolute", bottom: 4, flexDirection: "row", gap: 3 },
     marker: { width: 5, height: 5, borderRadius: radii.full },
-    // Holidays: a red rim fading to the plain surface in the centre, clearly apart from the pale orange weekends.
     holidayBubble: holidayGlow(colors),
+    weekendHolidayBubble: holidayGlow(colors, true),
     holidayNumber: { color: colors.ink },
     eventDot: { backgroundColor: colors.primaryDark },
     selectedDot: { backgroundColor: colors.onPrimary },

@@ -68,6 +68,7 @@ type DayBubbleProps = {
   today: boolean;
   muted: boolean;
   weekend: boolean;
+  bankHoliday: boolean;
   hasEvent: boolean;
   holidayNames: string[];
   regionalLabel: string;
@@ -93,6 +94,7 @@ const DayBubble = memo(function DayBubble({
   today,
   muted,
   weekend,
+  bankHoliday,
   hasEvent,
   holidayNames,
   regionalLabel,
@@ -141,6 +143,7 @@ const DayBubble = memo(function DayBubble({
             { backgroundColor: `${colors.bubble}${reduceTransparency ? "FF" : "E6"}`, borderColor: highContrast ? colors.ink : `${colors.primary}40` },
             { width: cellSize, height: cellSize, borderRadius: Math.min(14, cellSize * 0.28) },
             weekend && styles.weekendBubble,
+            bankHoliday && styles.bankBubble,
             muted && styles.mutedBubble,
             today && styles.todayBubble,
             selected && styles.selectedBubble,
@@ -241,6 +244,7 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
               today={dateKey === todayKey}
               muted={date.getMonth() !== viewMonth.getMonth()}
               weekend={date.getDay() === 0 || date.getDay() === 6}
+              bankHoliday={bankSaturday(date) !== null}
               hasEvent={eventDates.has(dateKey)}
               holidayNames={holidayNamesOn(dateKey) ?? noHolidays}
               regionalLabel={regionalLabelFor(date, labelLanguage, hijriOffset)}
@@ -264,6 +268,7 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
         <View style={styles.popupHeader}><View style={{flex:1,gap:3}}><Text style={styles.popupDate}>{popup.date.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage!=="english"?<Text selectable style={[styles.popupScope,{writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr",textAlign:"left"}]}>{regionalDateLabel(popup.date,labelLanguage)}</Text>:null}</View><Pressable accessibilityLabel="Close date details" onPress={() => { hover.keepOpen(); setPopup(null); }} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
         <ScrollView style={styles.popupScroll} contentContainerStyle={{gap:8}} nestedScrollEnabled keyboardShouldPersistTaps="handled">
           {popupHolidays.map((holiday) => <Pressable accessibilityRole="button" onPress={() => { setDetail(holiday); setPopup(null); }} key={`${holiday.date}-${holiday.name}`} style={[styles.popupHoliday, { borderColor: holidayAccent(colors), backgroundColor: `${holidayAccent(colors)}14` }]}><Text style={[styles.popupName, { color: holidayAccent(colors) }]}>{holiday.name}</Text><Text style={styles.popupScope}>{holiday.scope} · {holiday.kind}{holiday.subjectToMoon ? " · Subject to moon sighting" : ""} · <Span style={styles.popupLink}>Details & source ↗</Span></Text></Pressable>)}
+          {bankSaturday(popup.date) ? <Text style={[styles.popupScope, { color: bankTeal(colors), fontWeight: "700" }]}>Bank holiday ({bankSaturday(popup.date)} Saturday) · banks closed, government offices open</Text> : null}
           <View style={{gap:3}}>
             <Text selectable style={styles.popupScope}><Span style={[styles.calTag,{color:calendarColours.hijri}]}>Hijri </Span>{hijriLabel(hijriDate(popup.date,hijriOffset))} (approx.)</Text>
             <Text selectable style={styles.popupScope}><Span style={[styles.calTag,{color:calendarColours.pandit}]}>Kashmiri Pandit </Span>{panchangLabel(kashmiriPanchang(popup.date))}</Text>
@@ -285,6 +290,9 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
 // Box shadows are costly on Android: redrawn while the season layer animates above the grid and rebuilt for all 126
 // bubbles on every theme change. Android bubbles go without; the gloss layers still give the glass look.
 const lightShadows = Platform.OS === "android";
+// Banks close on the 2nd and 4th Saturday of every month (RBI rule); government offices stay open.
+export function bankSaturday(date: Date) { if (date.getDay() !== 6) return null; const week = Math.ceil(date.getDate() / 7); return week === 2 ? "2nd" : week === 4 ? "4th" : null; }
+export const bankTeal = (colors: ThemeColors) => isDarkSurface(colors.surface) ? "#5FD4D4" : "#0E8C8C";
 const weekendTint = { fill: "#F0913A2E", line: "#E07B2A66" };
 // Holidays: a purple rim fading to the centre. The centre is the plain surface, or the weekend's pale orange when the
 // holiday falls on a Saturday or Sunday, so it reads as both.
@@ -309,6 +317,7 @@ function createStyles(colors: ThemeColors) {
     glassShine: { position: "absolute", width: "23%", height: "150%", top: "-25%", left: "12%", transform: [{ rotate: "28deg" }], backgroundColor: `${colors.surface}28` },
     // Saturday and Sunday: the same light orange in every colour theme.
     weekendBubble: { backgroundColor: weekendTint.fill, borderColor: weekendTint.line },
+    bankBubble: { borderColor: bankTeal(colors), borderStyle: "dashed", borderWidth: 2 },
     mutedBubble: { backgroundColor: colors.background, borderColor: colors.line, borderWidth: 1, boxShadow: "none" },
     todayBubble: { backgroundColor: colors.today, borderColor: colors.todayInk, borderWidth: 2, boxShadow: lightShadows ? undefined : `0 0 0 3px ${colors.surface}, 0 0 0 5px ${colors.today}` },
     selectedBubble: { backgroundColor: `${colors.primary}E6`, borderColor: `${colors.surface}CC`, borderWidth: 1.5, boxShadow: lightShadows ? `0 4px 6px ${colors.primary}40` : `inset 0 1px 2px ${colors.surface}88, 0 2px 0 ${colors.primary}66, 0 10px 18px ${colors.primary}35` },

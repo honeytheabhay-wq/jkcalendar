@@ -7,7 +7,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
-import { CalendarGrid, holidayGlow } from "@/components/calendar-grid";
+import { bankTeal, CalendarGrid, holidayGlow } from "@/components/calendar-grid";
 import { SeasonalScreen } from "@/components/seasonal-screen";
 import { MonthJump } from "@/components/month-jump";
 import { holidayDateAppearance, todayDateColors, radii, shadows, spacing, darkBackground, lightBackground, switchToLight, type ThemeColors, useCalendarTheme, useSeason } from "@/theme";
@@ -195,6 +195,7 @@ export function Home() {
               <View style={styles.legendItem}><View style={styles.todaySwatch} /><Text style={styles.legendText}>Today</Text></View>
               <View style={styles.legendItem}><View style={styles.holidaySwatch} /><Text style={styles.legendText}>Holiday</Text></View>
               <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.primaryDark }]} /><Text style={styles.legendText}>Personal event</Text></View>
+              <View style={styles.legendItem}><View style={[styles.bankSwatch, { borderColor: bankTeal(colors) }]} /><Text style={styles.legendText}>Bank</Text></View>
               <Text style={styles.yearNote}>{holidayYearLoaded(viewMonth.getFullYear()) ? "Official list: 2026" : "Holiday schedule unavailable"}</Text>
             </View>
           </View>
@@ -257,6 +258,7 @@ function createStyles(colors: ThemeColors, narrow: boolean) {
     legendDot: { width: 7, height: 7, borderRadius: radii.full },
     legendText: { color: colors.muted, fontSize: 11, fontWeight: "600" },
     yearNote: { marginLeft: "auto", color: colors.muted, fontSize: 10 },
+    bankSwatch: { width: 10, height: 10, borderRadius: 3, borderWidth: 1.5, borderStyle: "dashed" },
     holidaySwatch: { width: 10, height: 10, borderRadius: 3, ...holidayGlow(colors) },
     todaySwatch: { width: 10, height: 10, borderRadius: 3, backgroundColor: todayDateColors.fill, borderColor: todayDateColors.ring, borderWidth: 2 },
     buttonPressed: { opacity: 0.76, transform: [{ scale: 0.97 }] },

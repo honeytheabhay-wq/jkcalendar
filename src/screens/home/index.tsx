@@ -142,11 +142,9 @@ export function Home() {
   return (
     <SeasonalScreen>
     <Stack.Screen options={{ headerTitle: () => <View style={styles.brand}><AppLogo /><Text style={styles.brandText}>J&K Calendar</Text></View>, headerRight: () => <Pressable accessibilityRole="button" accessibilityLabel={dark ? "Switch to light mode" : "Switch to dark mode"} hitSlop={8} onPress={() => switchThemeWithFade(dark ? lightBackground(season.id) : darkBackground(), () => { if (dark) switchToLight(); else setPreference("appearance", "dark"); })} style={styles.modeButton}><Text allowFontScaling={false} style={styles.modeText}>{dark ? "☀" : "☾"}</Text></Pressable> }} />
-    <ScrollView scrollEnabled={!(calendarView === "yearly" && yearZoomed)} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} stickyHeaderIndices={[2]}>
-      <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleOne]} />
-      <View pointerEvents="none" style={[styles.decorativeBubble, styles.bubbleTwo]} />
+    <ScrollView scrollEnabled={!(calendarView === "yearly" && yearZoomed)} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} stickyHeaderIndices={[0]}>
 
-      {/* Stays pinned at the top while the page scrolls (stickyHeaderIndices: the third child). */}
+      {/* Stays pinned at the top while the page scrolls (stickyHeaderIndices: the first child). */}
       <View style={styles.toolbarDock}><View style={styles.toolbar}>
         <ViewTabs value={calendarView} onChange={value => { setDetailsDate(null); setCalendarView(value); }} />
         <View style={styles.utilities}>
@@ -217,9 +215,6 @@ export function Home() {
 function createStyles(colors: ThemeColors, narrow: boolean) {
   return StyleSheet.create({
     content: { alignItems: "center", gap: 10, paddingHorizontal: spacing.md, paddingTop: 4, paddingBottom: spacing.xxl, backgroundColor: colors.background },
-    decorativeBubble: { position: "absolute", borderRadius: radii.full, opacity: 0.62 },
-    bubbleOne: { width: 170, height: 170, top: -55, right: -70, backgroundColor: colors.today },
-    bubbleTwo: { width: 120, height: 120, top: 210, left: -75, backgroundColor: colors.primarySoft },
     toolbarDock: { width:"100%", alignItems:"center", paddingVertical:4, zIndex:20 },
     // A floating pill: surface background and a soft shadow so it reads above the page as it scrolls under it.
     toolbar: { width:"100%", maxWidth:620, flexDirection:"row", flexWrap:"wrap", alignItems:"center", justifyContent:"space-between", gap:4, paddingHorizontal:6, borderRadius:radii.full, backgroundColor:colors.surface, boxShadow:`0 4px 14px ${colors.primary}22` },

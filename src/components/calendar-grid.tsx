@@ -138,7 +138,7 @@ const DayBubble = memo(function DayBubble({
         <Animated.View
           style={[
             styles.dayBubble,
-            { backgroundColor: `${colors.bubble}${reduceTransparency ? "FF" : glass.alpha}`, borderColor: highContrast ? colors.ink : `${colors.surface}E6` },
+            { backgroundColor: `${colors.bubble}${reduceTransparency ? "FF" : "E6"}`, borderColor: highContrast ? colors.ink : `${colors.primary}40` },
             { width: cellSize, height: cellSize, borderRadius: Math.min(14, cellSize * 0.28) },
             weekend && styles.weekendBubble,
             muted && styles.mutedBubble,
@@ -226,8 +226,6 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
         ))}
       </View>
       <View style={[styles.dateGrid, { width, gap }]}> 
-        <View pointerEvents="none" style={[styles.glassGlowOne, { opacity: reduceTransparency ? 0 : glassSettings[glassLevel].glow }]} />
-        <View pointerEvents="none" style={[styles.glassGlowTwo, { opacity: reduceTransparency ? 0 : glassSettings[glassLevel].glow }]} />
         {dates.map((date, index) => {
           const dateKey = toDateKey(date);
           return (
@@ -278,6 +276,7 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
 // Box shadows are costly on Android: redrawn while the season layer animates above the grid and rebuilt for all 126
 // bubbles on every theme change. Android bubbles go without; the gloss layers still give the glass look.
 const lightShadows = Platform.OS === "android";
+const weekendTint = { fill: "#F0913A2E", line: "#E07B2A66" };
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     calendar: { gap: 16, position: "relative", zIndex: 5 },
@@ -288,9 +287,8 @@ function createStyles(colors: ThemeColors) {
     dayBubble: { overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: `${colors.bubble}99`, borderColor: `${colors.surface}E6`, borderWidth: 1.5, borderCurve: "continuous", boxShadow: lightShadows ? undefined : `inset 0 1px 1px ${colors.surface}CC, inset 0 -1px 2px ${colors.primary}25, 0 1px 0 ${colors.primary}35, 0 8px 16px ${colors.primary}25` },
     gloss: { position: "absolute", width: "94%", height: "42%", top: 1, left: "3%", borderRadius: 10, backgroundColor: `${colors.surface}66` },
     glassShine: { position: "absolute", width: "23%", height: "150%", top: "-25%", left: "12%", transform: [{ rotate: "28deg" }], backgroundColor: `${colors.surface}28` },
-    glassGlowOne: { position: "absolute", width: 150, height: 150, borderRadius: 999, backgroundColor: colors.primarySoft, opacity: 0.75, top: 10, left: 30 },
-    glassGlowTwo: { position: "absolute", width: 130, height: 130, borderRadius: 999, backgroundColor: colors.weekend, opacity: 0.75, bottom: 15, right: 20 },
-    weekendBubble: { backgroundColor: `${colors.weekend}BB` },
+    // Saturday and Sunday: the same light orange in every colour theme.
+    weekendBubble: { backgroundColor: weekendTint.fill, borderColor: weekendTint.line },
     mutedBubble: { backgroundColor: colors.background, borderColor: colors.line, borderWidth: 1, boxShadow: "none" },
     todayBubble: { backgroundColor: colors.today, borderColor: colors.todayInk, borderWidth: 2, boxShadow: lightShadows ? undefined : `0 0 0 3px ${colors.surface}, 0 0 0 5px ${colors.today}` },
     selectedBubble: { backgroundColor: `${colors.primary}E6`, borderColor: `${colors.surface}CC`, borderWidth: 1.5, boxShadow: lightShadows ? `0 4px 6px ${colors.primary}40` : `inset 0 1px 2px ${colors.surface}88, 0 2px 0 ${colors.primary}66, 0 10px 18px ${colors.primary}35` },

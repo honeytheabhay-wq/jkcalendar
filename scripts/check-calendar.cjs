@@ -134,6 +134,9 @@ async function main() {
   const html='<input type="hidden" name="__VIEWSTATE" value="a&amp;b"/><option value="100">100</option><table><tr><td><a onclick="showOrder.aspx?actCode=O45638"><span class="itemLink">Postponement of provincial holiday</span></a></td><td>1614 Dt 07/10/2026</td></tr><tr><td><a onclick="showOrder.aspx?actCode=O99999"><span class="itemLink">Holiday amendment</span></a></td><td>New order</td></tr><tr><td><a onclick="showOrder.aspx?actCode=O99998"><span class="itemLink">Transfers</span></a></td></tr></table>';
   const official=parseOfficialOrders(html);assert.equal(official.checkedCount,3);assert.equal(official.orders.length,2);assert.equal(official.orders[0].included,true);assert.equal(official.orders[1].included,false);assert.throws(()=>parseOfficialOrders('<html>Error</html>'));
   const post=new URLSearchParams(largerPageRequest(html));assert.equal(post.get('__VIEWSTATE'),'a&b');assert.equal(post.get('ctl00$conPage$ddlPageSize'),'100');
+  {const {isHolidayOrderTitle}=load('src/utils/official-orders-model.ts');
+   for(const t of ['Postponement of provincial holiday on account of Urs Sheikh Noor-Ud-Din Sahib','Preponement of Local Holiday on account of Mela Pat','Holiday on account of Shab-e-Barat','Eid-ul-Fitr holiday'])assert(isHolidayOrderTitle(t),t);
+   for(const t of ['Compassionate appointment of Mr Shabir Ahmad S/o Late Abdul Aziz','Transfer of Mr Eidris Khan','Promotion of officers'])assert(!isHolidayOrderTitle(t),t);}
   const {widgetData,widgetTimeline}=load('src/utils/widget-data.ts');
   const w=widgetData([{id:'w',title:'Review',date:'2026-10-26',time:'14:00'}],reference);assert.equal(w.holiday,'Accession Day');assert.equal(w.eventTitle,'Review');
   assert.match(w.hijri,/AH$/);assert.match(w.pandit,/Saptarishi 5102$/);assert.equal(w.hindi,'Vikram Samvat 2083');

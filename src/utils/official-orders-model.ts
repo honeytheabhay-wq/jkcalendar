@@ -1,6 +1,10 @@
 export const officialOrdersUrl = "https://jkgad.nic.in/En/OrderCirculer.aspx";
 export const knownHolidayOrders = ["O44738", "O45600", "O45638"];
 export type OfficialOrder = { id: string; title: string; reference: string; url: string; included: boolean };
+// Holiday orders only. Whole words, so a name like "Shabir" in an appointment order does not match "Shab".
+export function isHolidayOrderTitle(title: string) {
+  return /\b(holidays?|shab[- ]?e[- ]?\w+|shab-i-\w+|urs|eids?|eid-ul-\w+|mela|navratri|diwali|dussehra|raksha\s+bandhan|nauroz|navroz|janmashtami|janam\s+ashtami|yatra)\b/i.test(title);
+}
 function decode(text: string) { return text.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16))).replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, " "); }
 function plain(html: string) { return decode(html.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim(); }
 export function parseOfficialOrders(html: string) {
@@ -10,7 +14,7 @@ export function parseOfficialOrders(html: string) {
     if (!id || allIds.has(id)) continue;
     allIds.add(id);
     const title = plain(/<span[^>]*class=["']itemLink["'][^>]*>([\s\S]*?)<\/span>/i.exec(row)?.[1] ?? /<a\b[^>]*>([\s\S]*?)<\/a>/i.exec(row)?.[1] ?? "");
-    if (!/holiday|shab|urs\b|eid|mela\b|navrat|diwali|dussehra|raksha|nauroz|janam|yatra/i.test(title)) continue;
+    if (!isHolidayOrderTitle(title)) continue;
     const cells = [...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)];
     rows.push({ id, title, reference: plain(cells[1]?.[1] ?? ""), url: `https://jkgad.nic.in/common/showOrder.aspx?actCode=${id}`, included: knownHolidayOrders.includes(id) });
   }

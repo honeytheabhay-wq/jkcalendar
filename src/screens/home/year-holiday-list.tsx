@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { Pressable, ScrollView, Share, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 
 import { holidays2026, type Holiday } from "@/data/holidays-2026";
@@ -8,7 +8,7 @@ import { radii, shadows, spacing, type ThemeColors, useCalendarTheme } from "@/t
 import { HolidayDetails } from "@/components/holiday-details";
 import { holidayYearLoaded } from "@/utils/holiday-info";
 import { useToday } from "@/utils/today";
-import { holidayListText, searchHolidays } from "@/utils/holiday-share";
+import { searchHolidays } from "@/utils/holiday-share";
 
 const kindLabels = { general: "J&K", provincial: "Provincial", local: "Local", restricted: "Restricted", special: "Special" } as const;
 
@@ -52,7 +52,6 @@ export const YearHolidayList = memo(function YearHolidayList({ year }: { year: n
     <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.title}>Holidays this year</Text>
-        {holidayYearLoaded(year) ? <Pressable accessibilityRole="button" accessibilityLabel={`Share the ${year} holiday list`} onPress={() => void Share.share({ message: holidayListText(holidays, year) }).catch(() => {})} style={({ pressed }) => [styles.shareButton, pressed && styles.pressed]}><Text style={styles.shareText}>Share</Text></Pressable> : null}
         <Pressable disabled={!holidayYearLoaded(year)} accessibilityRole="button" accessibilityLabel={holidayYearLoaded(year) ? `${holidays.length} entries. ${expanded ? "Hide" : "Show"} all holidays in one scrollable list` : `Holiday schedule unavailable for ${year}`} accessibilityState={{ expanded, disabled: !holidayYearLoaded(year) }} onPress={() => setExpanded((current) => !current)} style={({ pressed }) => [styles.countButton, pressed && styles.pressed]}>
           <Text style={styles.count}>{holidayYearLoaded(year) ? `${holidays.length} entries ${expanded ? "⌃" : "⌄"}` : "Unavailable"}</Text>
         </Pressable>
@@ -87,8 +86,6 @@ function createStyles(colors: ThemeColors) {
     card: { width: "100%", maxWidth: 620, gap: spacing.lg, padding: 18, backgroundColor: colors.surface, borderRadius: radii.card, borderCurve: "continuous", boxShadow: shadows.card },
     header: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 },
     title: { flex: 1, color: colors.ink, fontSize: 17, fontWeight: "800" },
-    shareButton: { minHeight: 40, justifyContent: "center", paddingHorizontal: 12, backgroundColor: colors.primarySoft, borderRadius: radii.full },
-    shareText: { color: colors.primaryDark, fontSize: 11, fontWeight: "800" },
     search: { minHeight: 44, paddingHorizontal: 14, borderRadius: radii.full, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.background, color: colors.ink, fontSize: 14 },
     away: { alignSelf: "flex-end", color: colors.primaryDark, fontSize: 10, fontWeight: "700", paddingRight: 6 },
     countButton: { minHeight: 40, justifyContent: "center", paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: radii.full },

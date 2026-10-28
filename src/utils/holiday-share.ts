@@ -1,17 +1,6 @@
 import type { Holiday } from "../data/holidays-2026";
 import { fromDateKey } from "./dates";
 
-const scopeTag = (holiday: Holiday) => holiday.kind === "general" ? "" : ` (${holiday.scope}${holiday.kind === "restricted" ? ", restricted" : ""})`;
-const shortDate = (key: string) => fromDateKey(key).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
-
-// Plain text that reads well in WhatsApp: one line per holiday, local ones tagged with their area.
-export function holidayListText(holidays: Holiday[], year: number) {
-  const lines = [...holidays].sort((a, b) => a.date.localeCompare(b.date)).map(h => `${shortDate(h.date)} – ${h.name}${scopeTag(h)}${h.subjectToMoon ? " *" : ""}`);
-  return [`J&K Holidays ${year} (official list)`, "", ...lines, "", "* Subject to moon sighting", "Shared from J&K Calendar"].join("\n");
-}
-export function holidayText(holiday: Holiday) {
-  return `${holiday.name}: ${fromDateKey(holiday.date).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · ${holiday.scope}${holiday.subjectToMoon ? " · subject to moon sighting" : ""}. Shared from J&K Calendar`;
-}
 // Opens Google Calendar's "new event" page with the holiday as an all-day event.
 export function googleCalendarUrl(holiday: Holiday) {
   const day = holiday.date.replaceAll("-", ""), next = fromDateKey(holiday.date); next.setDate(next.getDate() + 1);

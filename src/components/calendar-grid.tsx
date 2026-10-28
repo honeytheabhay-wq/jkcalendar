@@ -115,8 +115,8 @@ const DayBubble = memo(function DayBubble({
   const press = useSharedValue(0);
   const lift = useSharedValue(selected ? 1 : 0);
   useEffect(() => { lift.value = reducedMotion ? (selected ? 1 : 0) : withSpring(selected ? 1 : 0, { damping: 14, stiffness: 220 }); }, [selected, reducedMotion]);
-  const motionStyle = useAnimatedStyle(() => reducedMotion ? { opacity: muted ? 0.5 : 1 - press.value * 0.16 } : {
-    opacity: (muted ? 0.5 : 1) - press.value * 0.16,
+  const motionStyle = useAnimatedStyle(() => reducedMotion ? { opacity: muted ? 0.35 : 1 - press.value * 0.16 } : {
+    opacity: (muted ? 0.35 : 1) - press.value * 0.16,
     transform: [{ translateY: -3 * lift.value }, { scale: 1 + 0.025 * lift.value - 0.07 * press.value }],
   });
   const holidayText = (holidayNames.length ? `. Holiday: ${holidayNames.join(", ")}` : "")+(hasEvent?". Personal event":"");
@@ -233,6 +233,8 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
       <View style={[styles.dateGrid, { width, gap }]}> 
         {dates.map((date, index) => {
           const dateKey = toDateKey(date);
+          // Dates from the previous or next month are stale: faded, with no holiday, weekend, bank, event or lunar marks.
+          const outside = date.getMonth() !== viewMonth.getMonth();
           return (
             // Keyed by grid position, so a month change updates the 42 bubbles instead of rebuilding them.
             <DayBubble
@@ -240,16 +242,16 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
               date={date}
               index={index}
               cellSize={cellSize}
-              selected={dateKey === selectedKey}
-              today={dateKey === todayKey}
-              muted={date.getMonth() !== viewMonth.getMonth()}
-              weekend={date.getDay() === 0 || date.getDay() === 6}
-              bankHoliday={bankSaturday(date) !== null}
-              hasEvent={eventDates.has(dateKey)}
-              holidayNames={holidayNamesOn(dateKey) ?? noHolidays}
+              selected={!outside && dateKey === selectedKey}
+              today={!outside && dateKey === todayKey}
+              muted={outside}
+              weekend={!outside && (date.getDay() === 0 || date.getDay() === 6)}
+              bankHoliday={!outside && bankSaturday(date) !== null}
+              hasEvent={!outside && eventDates.has(dateKey)}
+              holidayNames={outside ? noHolidays : holidayNamesOn(dateKey) ?? noHolidays}
               regionalLabel={regionalLabelFor(date, labelLanguage, hijriOffset)}
-              lunarLeft={showHijri ? hijriShortLabel(hijriDate(date,hijriOffset)) : ""}
-              lunarRight={tithiShort ? tithiShort(kashmiriPanchang(date)) : ""}
+              lunarLeft={!outside && showHijri ? hijriShortLabel(hijriDate(date,hijriOffset)) : ""}
+              lunarRight={!outside && tithiShort ? tithiShort(kashmiriPanchang(date)) : ""}
               colors={colors}
               styles={styles}
               glassLevel={glassLevel}
@@ -318,7 +320,7 @@ function createStyles(colors: ThemeColors) {
     // Saturday and Sunday: the same light orange in every colour theme.
     weekendBubble: { backgroundColor: weekendTint.fill, borderColor: weekendTint.line },
     bankBubble: { borderColor: bankTeal(colors), borderStyle: "dashed", borderWidth: 2 },
-    mutedBubble: { backgroundColor: colors.background, borderColor: colors.line, borderWidth: 1, boxShadow: "none" },
+    mutedBubble: { backgroundColor: "transparent", borderColor: `${colors.line}80`, borderWidth: 1, boxShadow: "none" },
     todayBubble: { backgroundColor: colors.today, borderColor: colors.todayInk, borderWidth: 2, boxShadow: lightShadows ? undefined : `0 0 0 3px ${colors.surface}, 0 0 0 5px ${colors.today}` },
     selectedBubble: { backgroundColor: `${colors.primary}E6`, borderColor: `${colors.surface}CC`, borderWidth: 1.5, boxShadow: lightShadows ? `0 4px 6px ${colors.primary}40` : `inset 0 1px 2px ${colors.surface}88, 0 2px 0 ${colors.primary}66, 0 10px 18px ${colors.primary}35` },
     dayNumber: { color: colors.ink, fontSize: 17, marginBottom: 3, fontWeight: "700", fontVariant: ["tabular-nums"] },

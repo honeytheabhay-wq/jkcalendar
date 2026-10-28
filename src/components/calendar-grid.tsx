@@ -258,9 +258,16 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
         })}
       </View>
       {popup ? <Pressable onHoverIn={hover.keepOpen} onHoverOut={hover.leave} onFocus={hover.keepOpen} onBlur={hover.leave} onLayout={event => setPopupHeight(event.nativeEvent.layout.height)} accessibilityLiveRegion="polite" onAccessibilityEscape={() => setPopup(null)} style={[styles.popupCard, { width: popupWidth, left: popupLeft, top: popupTop, maxHeight:popupMaxHeight }]}>
-        <View style={styles.popupHeader}><View style={{flex:1,gap:3}}><Text style={styles.popupDate}>{popup.date.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage!=="english"?<Text selectable style={[styles.popupScope,{writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr",textAlign:"left"}]}>{regionalDateLabel(popup.date,labelLanguage)}</Text>:null}<Text selectable style={styles.popupScope}>Hijri: {hijriLabel(hijriDate(popup.date,hijriOffset))} (approx.)</Text><Text selectable style={styles.popupScope}>Kashmiri Pandit: {panchangLabel(kashmiriPanchang(popup.date))}</Text><Text selectable style={styles.popupScope}>Hindi: {hindiLabel(kashmiriPanchang(popup.date))}</Text></View><Pressable accessibilityLabel="Close date details" onPress={() => { hover.keepOpen(); setPopup(null); }} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
+        {/* Date, then the holiday (purple), then the three calendars, each in its own colour. */}
+        <View style={styles.popupHeader}><View style={{flex:1,gap:3}}><Text style={styles.popupDate}>{popup.date.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage!=="english"?<Text selectable style={[styles.popupScope,{writingDirection:labelLanguage==="kashmiri"?"rtl":"ltr",textAlign:"left"}]}>{regionalDateLabel(popup.date,labelLanguage)}</Text>:null}</View><Pressable accessibilityLabel="Close date details" onPress={() => { hover.keepOpen(); setPopup(null); }} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
         <ScrollView style={styles.popupScroll} contentContainerStyle={{gap:8}} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-          {popupHolidays.length ? popupHolidays.map((holiday) => <Pressable accessibilityRole="button" onPress={() => { setDetail(holiday); setPopup(null); }} key={`${holiday.date}-${holiday.name}`} style={styles.popupHoliday}><Text style={styles.popupName}>{holiday.name}</Text><Text style={styles.popupScope}>{holiday.scope} · {holiday.kind}{holiday.subjectToMoon ? " · Subject to moon sighting" : ""} · <Span style={styles.popupLink}>Details & source ↗</Span></Text></Pressable>) : <Text style={styles.popupScope}>{holidayYearLoaded(popup.date.getFullYear()) ? "No holiday listed for this date." : `Holiday schedule unavailable for ${popup.date.getFullYear()}.`}</Text>}
+          {popupHolidays.map((holiday) => <Pressable accessibilityRole="button" onPress={() => { setDetail(holiday); setPopup(null); }} key={`${holiday.date}-${holiday.name}`} style={[styles.popupHoliday, { borderColor: holidayAccent(colors), backgroundColor: `${holidayAccent(colors)}14` }]}><Text style={[styles.popupName, { color: holidayAccent(colors) }]}>{holiday.name}</Text><Text style={styles.popupScope}>{holiday.scope} · {holiday.kind}{holiday.subjectToMoon ? " · Subject to moon sighting" : ""} · <Span style={styles.popupLink}>Details & source ↗</Span></Text></Pressable>)}
+          <View style={{gap:3}}>
+            <Text selectable style={styles.popupScope}><Span style={[styles.calTag,{color:calendarColours.hijri}]}>Hijri </Span>{hijriLabel(hijriDate(popup.date,hijriOffset))} (approx.)</Text>
+            <Text selectable style={styles.popupScope}><Span style={[styles.calTag,{color:calendarColours.pandit}]}>Kashmiri Pandit </Span>{panchangLabel(kashmiriPanchang(popup.date))}</Text>
+            <Text selectable style={styles.popupScope}><Span style={[styles.calTag,{color:calendarColours.hindi}]}>Hindi </Span>{hindiLabel(kashmiriPanchang(popup.date))}</Text>
+          </View>
+          {!popupHolidays.length ? <Text style={styles.popupScope}>{holidayYearLoaded(popup.date.getFullYear()) ? "No holiday listed for this date." : `Holiday schedule unavailable for ${popup.date.getFullYear()}.`}</Text> : null}
           {popupEvents.map(event=><View key={event.id} style={styles.popupEvent}>
             <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${event.title}`} onPress={()=>router.push({pathname:"/add-event",params:{id:event.id}})} style={styles.popupEventText}><Text style={styles.popupName}>{event.title}</Text><Text style={styles.popupScope}>{event.time||"All day"}{event.repeat&&event.repeat!=="none"?` · ${event.repeat}`:""}{event.reminderMinutes!=null?" · Reminder":""} · Edit</Text></Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${event.title}`} onPress={()=>onDeleteEvent(event.id,event.title)} style={styles.popupClose}><Text style={{color:colors.danger,fontSize:20}}>×</Text></Pressable>
@@ -280,6 +287,9 @@ const weekendTint = { fill: "#F0913A2E", line: "#E07B2A66" };
 // Holidays: a purple rim fading to the centre. The centre is the plain surface, or the weekend's pale orange when the
 // holiday falls on a Saturday or Sunday, so it reads as both.
 const holidayRim = { light: "#7B4BC4", dark: "#B79CFF" };
+export const holidayAccent = (colors: ThemeColors) => isDarkSurface(colors.surface) ? holidayRim.dark : holidayRim.light;
+// One colour per calendar in the date pop-up.
+const calendarColours = { hijri: "#2E9E6E", pandit: "#D9822B", hindi: "#3B82C4" };
 const isDarkSurface = (hex: string) => { const n = parseInt(hex.slice(1, 7), 16); return ((n >> 16) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000 < 128; };
 export function holidayGlow(colors: ThemeColors, weekend = false) {
   const rim = isDarkSurface(colors.surface) ? holidayRim.dark : holidayRim.light, centre = weekend ? weekendTint.fill : colors.surface;
@@ -326,7 +336,8 @@ function createStyles(colors: ThemeColors) {
     popupCloseText: { color: colors.muted, fontSize: 22 },
     // Shrinks to fit inside the card's maximum height and scrolls if the holidays and events are longer.
     popupScroll: { flexShrink: 1, marginTop: 8 },
-    popupHoliday: { marginBottom: 2, gap: 2 },
+    popupHoliday: { gap: 2, padding: 8, borderRadius: 12, borderWidth: 1 },
+    calTag: { fontWeight: "800" },
     popupLink: { color: colors.primaryDark, fontWeight: "700" },
     popupName: { color: colors.primaryDark, fontSize: 13, lineHeight: 18, fontWeight: "700" },
     popupScope: { color: colors.muted, fontSize: 11, lineHeight: 16 },

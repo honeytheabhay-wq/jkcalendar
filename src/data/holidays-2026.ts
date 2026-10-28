@@ -1,4 +1,5 @@
-export type HolidayKind = "general" | "provincial" | "local" | "restricted";
+// "special": one-off closures by order, e.g. offices closed for heavy snowfall (added through the online list).
+export type HolidayKind = "general" | "provincial" | "local" | "restricted" | "special";
 
 export type Holiday = {
   date: string;
@@ -6,6 +7,8 @@ export type Holiday = {
   scope: string;
   kind: HolidayKind;
   subjectToMoon?: boolean;
+  // The order behind an amended or special holiday (online list); otherwise the 2026 schedule is the source.
+  source?: { order: string; date: string; url: string; note: string };
 };
 
 const general = (date: string, name: string, subjectToMoon = false): Holiday => ({

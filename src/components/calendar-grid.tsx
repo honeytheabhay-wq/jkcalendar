@@ -8,6 +8,7 @@ import { holidays2026, type Holiday } from "@/data/holidays-2026";
 import { glassSettings, holidayDateAppearance, todayDateColors, radii, type ThemeColors, type GlassLevel, useLaggedTheme } from "@/theme";
 import { HolidayDetails } from "./holiday-details";
 import { holidayYearLoaded } from "@/utils/holiday-info";
+import { holidayListVersion } from "@/utils/holiday-store";
 import { useHoverDetails } from "@/utils/hover-details";
 import { occursOn } from "@/utils/event-model";
 import { useToday } from "@/utils/today";
@@ -19,10 +20,16 @@ import { hijriDate, hijriLabel, hijriShortLabel, hindiLabel, hindiShort, kashmir
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const noHolidays: string[] = [];
-const holidaysByDate = new Map<string, string[]>();
-holidays2026.forEach((holiday) => {
-  holidaysByDate.set(holiday.date, [...(holidaysByDate.get(holiday.date) ?? []), holiday.name]);
-});
+// Rebuilt when the online holiday list changes.
+let holidaysByDate = new Map<string, string[]>(), holidaysByDateVersion = -1;
+function holidayNamesOn(dateKey: string) {
+  if (holidaysByDateVersion !== holidayListVersion()) {
+    holidaysByDate = new Map();
+    holidays2026.forEach((holiday) => holidaysByDate.set(holiday.date, [...(holidaysByDate.get(holiday.date) ?? []), holiday.name]));
+    holidaysByDateVersion = holidayListVersion();
+  }
+  return holidaysByDate.get(dateKey);
+}
 
 // Date strings are cached: toLocaleDateString is slow on Hermes and every theme change re-renders 126 bubbles.
 const spokenDates = new Map<string, string>();
@@ -235,7 +242,7 @@ export const CalendarGrid = memo(function CalendarGrid({ viewMonth, active = tru
               muted={date.getMonth() !== viewMonth.getMonth()}
               weekend={date.getDay() === 0 || date.getDay() === 6}
               hasEvent={eventDates.has(dateKey)}
-              holidayNames={holidaysByDate.get(dateKey) ?? noHolidays}
+              holidayNames={holidayNamesOn(dateKey) ?? noHolidays}
               regionalLabel={regionalLabelFor(date, labelLanguage, hijriOffset)}
               lunarLeft={showHijri ? hijriShortLabel(hijriDate(date,hijriOffset)) : ""}
               lunarRight={tithiShort ? tithiShort(kashmiriPanchang(date)) : ""}

@@ -13,10 +13,16 @@ import { useToday } from "@/utils/today";
 import { usePreferences } from "@/utils/preferences";
 import { regionalDateLabel } from "@/utils/regional-labels";
 import { holidayYearLoaded } from "@/utils/holiday-info";
+import { holidayListVersion } from "@/utils/holiday-store";
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const holidayDates = new Set(holidays2026.map((holiday) => holiday.date));
+// Rebuilt when the online holiday list changes.
+let holidayDateSet = new Set<string>(), holidayDateVersion = -1;
+function isHolidayDate(key: string) {
+  if (holidayDateVersion !== holidayListVersion()) { holidayDateSet = new Set(holidays2026.map((holiday) => holiday.date)); holidayDateVersion = holidayListVersion(); }
+  return holidayDateSet.has(key);
+}
 const maxZoom = 3;
 
 type Styles = ReturnType<typeof createStyles>;
@@ -72,7 +78,7 @@ const MiniMonth = memo(function MiniMonth({ year, monthIndex, monthWidth, select
               {week.map(({ day, key }, column) => {
                 const gap = column ? " " : "";
                 if (day < 1) return gap + "\u2007\u2007";
-                const holiday = holidayDates.has(key), selected = key === selectedKey, today = key === todayKey;
+                const holiday = isHolidayDate(key), selected = key === selectedKey, today = key === todayKey;
                 // Plain Text for the nested spans: AppText would give each span its own font size.
                 return [gap, <Span key={key} style={[holiday && styles.holidayDay, selected && styles.selectedDay, today && styles.todayDay]}>{pad(day)}</Span>];
               })}

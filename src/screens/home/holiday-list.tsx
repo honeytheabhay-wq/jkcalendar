@@ -11,6 +11,7 @@ const kindLabels = {
   provincial: "Provincial holiday",
   local: "Local holiday",
   restricted: "Restricted holiday",
+  special: "Special closure",
 } as const;
 
 export function HolidayList({ holidays }: { holidays: Holiday[] }) {

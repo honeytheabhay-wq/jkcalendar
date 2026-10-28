@@ -71,6 +71,15 @@ export async function sendTestReminder() {
   updateReminderStatus({ testId: id, testAt: at, testReceivedAt: undefined });
 }
 
+// Immediate alert when the online holiday list moves, adds or removes an upcoming holiday (e.g. Eid after moon sighting).
+export async function notifyHolidayListChanges(changes: { name: string; from?: string; to?: string }[]) {
+  if (Platform.OS === "web" || !changes.length) return;
+  if (!(await Notifications.getPermissionsAsync()).granted) return;
+  const day = (key: string) => new Date(`${key}T12:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+  const line = (c: { name: string; from?: string; to?: string }) => c.to && c.from ? `${c.name}: now ${day(c.to)} (was ${day(c.from)})` : c.to ? `${c.name}: ${day(c.to)}` : `${c.name}: removed`;
+  await Notifications.scheduleNotificationAsync({ content: { title: changes.length === 1 ? "Holiday date updated" : `${changes.length} holiday updates`, body: changes.slice(0, 3).map(line).join("\n"), data: { calendarOwner: "jk-calendar-orders" } }, trigger: null });
+}
+
 // Immediate alert when the daily official-order check finds a new holiday order, e.g. a moon-sighting date change.
 export async function notifyNewHolidayOrders(titles: string[]) {
   if (Platform.OS === "web" || !titles.length) return;

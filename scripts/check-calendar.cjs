@@ -134,6 +134,16 @@ async function main() {
   const html='<input type="hidden" name="__VIEWSTATE" value="a&amp;b"/><option value="100">100</option><table><tr><td><a onclick="showOrder.aspx?actCode=O45638"><span class="itemLink">Postponement of provincial holiday</span></a></td><td>1614 Dt 07/10/2026</td></tr><tr><td><a onclick="showOrder.aspx?actCode=O99999"><span class="itemLink">Holiday amendment</span></a></td><td>New order</td></tr><tr><td><a onclick="showOrder.aspx?actCode=O99998"><span class="itemLink">Transfers</span></a></td></tr></table>';
   const official=parseOfficialOrders(html);assert.equal(official.checkedCount,3);assert.equal(official.orders.length,2);assert.equal(official.orders[0].included,true);assert.equal(official.orders[1].included,false);assert.throws(()=>parseOfficialOrders('<html>Error</html>'));
   const post=new URLSearchParams(largerPageRequest(html));assert.equal(post.get('__VIEWSTATE'),'a&b');assert.equal(post.get('ctl00$conPage$ddlPageSize'),'100');
+  // Online holiday list: bad files are rejected; a moon-sighting move of Eid is reported as a change.
+  {const {validateHolidayList,holidayChanges}=load('src/utils/holiday-store.ts');
+   const online=JSON.parse(fs.readFileSync(path.join(root,'holidays.json'),'utf8'));const list=validateHolidayList(online);
+   assert.equal(list.length,holidays2026.length);assert(list.filter(h=>h.subjectToMoon).some(h=>h.name==='Eid-ul-Azha'));
+   for(const bad of [null,{app:'other',holidays:online.holidays},{app:'jk-calendar',holidays:[]},{app:'jk-calendar',holidays:[{...online.holidays[0],date:'2026-02-30'}]},{app:'jk-calendar',holidays:[{...online.holidays[0],kind:'party'}]}])assert.equal(validateHolidayList(bad),null);
+   const moved=list.map(h=>h.name==='Eid-ul-Azha'&&h.date==='2026-05-28'?{...h,date:'2026-05-29'}:h);
+   assert.deepEqual(holidayChanges(list,moved,'2026-05-01'),[{name:'Eid-ul-Azha',from:'2026-05-28',to:'2026-05-29'}]);
+   assert.deepEqual(holidayChanges(list,list,'2026-05-01'),[]);
+   const special=validateHolidayList({app:'jk-calendar',holidays:[{date:'2026-12-14',name:'Offices closed: heavy snowfall',scope:'Kashmir Division',kind:'special',source:{order:'2001-JK(GAD) of 2026',date:'13 December 2026',url:'https://jkgad.nic.in/common/showOrder.aspx?actCode=O46000',note:'Closure due to snowfall.'}}]});
+   assert.equal(special[0].kind,'special');assert.equal(special[0].source.order,'2001-JK(GAD) of 2026');}
   {const {isHolidayOrderTitle}=load('src/utils/official-orders-model.ts');
    for(const t of ['Postponement of provincial holiday on account of Urs Sheikh Noor-Ud-Din Sahib','Preponement of Local Holiday on account of Mela Pat','Holiday on account of Shab-e-Barat','Eid-ul-Fitr holiday','Closure of Government Offices due to heavy snowfall','Schools to remain closed due to inclement weather'])assert(isHolidayOrderTitle(t),t);
    for(const t of ['Compassionate appointment of Mr Shabir Ahmad S/o Late Abdul Aziz','Transfer of Mr Eidris Khan','Promotion of officers','Closure of tender for supply of furniture'])assert(!isHolidayOrderTitle(t),t);}

@@ -10,7 +10,7 @@ import { holidayYearLoaded } from "@/utils/holiday-info";
 import { useToday } from "@/utils/today";
 import { holidayListText, searchHolidays } from "@/utils/holiday-share";
 
-const kindLabels = { general: "J&K", provincial: "Provincial", local: "Local", restricted: "Restricted" } as const;
+const kindLabels = { general: "J&K", provincial: "Provincial", local: "Local", restricted: "Restricted", special: "Special" } as const;
 
 function HolidayRow({ holiday, past, colors, onOpen, compact = false }: { holiday: Holiday; past: boolean; colors: ThemeColors; onOpen: (holiday: Holiday) => void; compact?: boolean }) {
   const styles = createStyles(colors);

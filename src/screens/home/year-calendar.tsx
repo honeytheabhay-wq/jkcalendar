@@ -74,7 +74,7 @@ const MiniMonth = memo(function MiniMonth({ year, monthIndex, monthWidth, select
                 if (day < 1) return gap + "\u2007\u2007";
                 const holiday = holidayDates.has(key), selected = key === selectedKey, today = key === todayKey;
                 // Plain Text for the nested spans: AppText would give each span its own font size.
-                return [gap, <Span key={key} style={[holiday && styles.holidayDay, today && styles.todayDay, selected && styles.selectedDay]}>{pad(day)}</Span>];
+                return [gap, <Span key={key} style={[holiday && styles.holidayDay, selected && styles.selectedDay, today && styles.todayDay]}>{pad(day)}</Span>];
               })}
             </Text>
           ))}
@@ -195,7 +195,7 @@ export const YearCalendar = memo(function YearCalendar({ year, width, selectedDa
           </Animated.View>
         </View>
       </GestureDetector>
-      <View style={styles.legend}><View style={[styles.dot, { backgroundColor: `${colors.holiday}55`, borderRadius: 2 }]} /><Text style={styles.legendText}>Holiday</Text><View style={[styles.dot, { backgroundColor: todayDateColors.fill, borderColor: todayDateColors.ring, borderWidth: 1.5 }]} /><Text style={styles.legendText}>Today</Text><View style={[styles.dot, { backgroundColor: colors.primary }]} /><Text style={styles.legendText}>Selected</Text></View>
+      <View style={styles.legend}><View style={[styles.dot, { backgroundColor: `${colors.holiday}55`, borderRadius: 2 }]} /><Text style={styles.legendText}>Holiday</Text><View style={[styles.dot, { backgroundColor: todayDateColors.fill, borderColor: todayDateColors.ring, borderWidth: 1.5 }]} /><Text style={styles.legendText}>Today</Text><Text style={[styles.legendText, styles.legendSelected]}>Selected</Text></View>
       {previewDate ? <Pressable onAccessibilityEscape={() => setPreviewDate(null)} accessibilityLiveRegion="polite" style={styles.datePopup}>
         <View style={styles.popupHeader}><View style={{ flex: 1, gap: 3 }}><Text style={styles.popupDate}>{previewDate.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</Text>{labelLanguage !== "english" ? <Text selectable style={[styles.popupHoliday, { writingDirection: labelLanguage === "kashmiri" ? "rtl" : "ltr", textAlign: "left" }]}>{regionalDateLabel(previewDate, labelLanguage)}</Text> : null}</View><Pressable accessibilityLabel="Close date details" onPress={() => setPreviewDate(null)} style={styles.popupClose}><Text allowFontScaling={false} style={styles.popupCloseText}>×</Text></Pressable></View>
         {previewHolidays.length ? previewHolidays.map((holiday) => <Pressable onPress={() => { setDetail(holiday); setPreviewDate(null); }} key={`${holiday.date}-${holiday.name}`}><Text style={styles.popupHoliday}>{holiday.name} · {holiday.scope} · Details & source ↗</Text></Pressable>) : <Text style={styles.popupHoliday}>{holidayYearLoaded(year) ? "No holiday listed for this date." : `Holiday schedule unavailable for ${year}.`}</Text>}
@@ -229,10 +229,12 @@ function createStyles(colors: ThemeColors) {
     weekRow: { fontFamily: "monospace", color: colors.ink },
     weekDay: { color: colors.muted },
     holidayDay: { color: colors.holiday, backgroundColor: `${colors.holiday}2E` },
+    // Today is always the green fill; the selected date is underlined (no bold: it would widen the monospace row), so the two never hide each other.
     todayDay: { color: todayDateColors.ink, backgroundColor: todayDateColors.fill },
-    selectedDay: { color: colors.onPrimary, backgroundColor: colors.primary },
+    selectedDay: { color: colors.primaryDark, textDecorationLine: "underline" },
     legend: { flexDirection: "row", alignItems: "center", gap: 5 },
     dot: { width: 7, height: 7, borderRadius: radii.full, marginLeft: 5 },
+    legendSelected: { marginLeft: 5, color: colors.primaryDark, fontWeight: "900", textDecorationLine: "underline" },
     legendText: { color: colors.muted, fontSize: 10, fontWeight: "600" },
     pressed: { opacity: 0.72, transform: [{ scale: 0.96 }] },
     datePopup: { position: "absolute", top: 90, left: 16, right: 16, padding: 14, gap: 8, zIndex: 100, elevation: 12, backgroundColor: colors.surface, borderColor: colors.primarySoft, borderWidth: 1, borderRadius: 18, boxShadow: `0 12px 28px ${colors.primary}35` },

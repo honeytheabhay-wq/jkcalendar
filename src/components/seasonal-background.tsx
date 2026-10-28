@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppState, Image, StyleSheet, View } from "react-native";
 import Animated, { type CSSAnimationKeyframes } from "react-native-reanimated";
 import { useCalendarTheme, useSeason } from "@/theme";
-import { usePreferences } from "@/utils/preferences";
 import { seasonalParticles, seasonStrengthAt, seasonMotionEnabled } from "@/utils/season-effects";
 import { useSeasonOverlayOpen } from "@/utils/season-motion-state";
 
@@ -62,18 +61,17 @@ function frame(p:Particle,progress:number,width:number,height:number) {
 }
 const falls=new Set(["petal","chinar","snow","flake","rain"]);
 
-export function SeasonalBackground({modal=false}:{modal?:boolean}) {
-  const {themeName,reduceMotion,highContrast}=useCalendarTheme(),{season}=useSeason();
-  const {seasonalMotion}=usePreferences();
-  const obscured=useSeasonOverlayOpen();
-  const [size,setSize]=useState({width:0,height:0}),[active,setActive]=useState(AppState.currentState==="active"),[focused,setFocused]=useState(false);
-  const {width,height}=size;
-  useEffect(()=>{const sub=AppState.addEventListener("change",state=>setActive(state==="active"));return()=>sub.remove();},[]);
-  useFocusEffect(useCallback(()=>{setFocused(true);return()=>setFocused(false);},[]));
-  const enabled=seasonalMotion!=="off"&&!reduceMotion&&!highContrast;
-  const running=seasonMotionEnabled({enabled,reduceMotion,highContrast,active,focused,obscured:obscured&&!modal});
-  // Keyframes are rebuilt only when the season, size or motion level changes, not on every screen update.
-  const particles=useMemo(()=>enabled&&height>0?seasonalParticles(season.id,seasonalMotion).map((p,index)=>{
+// Built once per season and screen size and shared by every screen's season layer, so opening Settings or an event
+// form reuses the home screen's keyframes instead of computing them again.
+const particleCache=new Map<string,ReturnType<typeof computeParticles>>();
+function buildParticles(id:Parameters<typeof seasonalParticles>[0],level:Parameters<typeof seasonalParticles>[1],width:number,height:number) {
+  const key=`${id}|${level}|${Math.round(width)}|${Math.round(height)}`;
+  let built=particleCache.get(key);
+  if(!built){built=computeParticles(id,level,width,height);particleCache.set(key,built);}
+  return built;
+}
+function computeParticles(id:Parameters<typeof seasonalParticles>[0],level:Parameters<typeof seasonalParticles>[1],width:number,height:number) {
+  return seasonalParticles(id,level).map((p,index)=>{
       const falling=falls.has(p.kind);
       const animationName:CSSAnimationKeyframes={};
       for(let step=0;step<=12;step++){
@@ -84,7 +82,21 @@ export function SeasonalBackground({modal=false}:{modal?:boolean}) {
         animationName[`${progress*100}%`]={opacity:p.opacity*life*Math.max(seasonStrengthAt(x,y),p.floor),transform:[{translateY:dy},{translateX:dx},{rotate:`${(Math.round(rotate*10)/10).toFixed(1)}deg`},{scale}]};
       }
       return {p,index,style:{position:"absolute" as const,left:`${p.x}%` as const,top:falling?0:height*p.y/100,width:p.width,height:p.height,animationName,animationDuration:p.duration,animationDelay:-p.phase*p.duration,animationIterationCount:"infinite" as const,animationTimingFunction:"linear" as const}};
-    }):null,[enabled,width,height,season.id,seasonalMotion]);
+  });
+}
+
+export function SeasonalBackground({modal=false}:{modal?:boolean}) {
+  const {themeName,reduceMotion,highContrast}=useCalendarTheme(),{season}=useSeason();
+  // One gentle level for everyone: Subtle. Reduce motion and high contrast still turn the effects off.
+  const seasonalMotion="subtle";
+  const obscured=useSeasonOverlayOpen();
+  const [size,setSize]=useState({width:0,height:0}),[active,setActive]=useState(AppState.currentState==="active"),[focused,setFocused]=useState(false);
+  const {width,height}=size;
+  useEffect(()=>{const sub=AppState.addEventListener("change",state=>setActive(state==="active"));return()=>sub.remove();},[]);
+  useFocusEffect(useCallback(()=>{setFocused(true);return()=>setFocused(false);},[]));
+  const enabled=!reduceMotion&&!highContrast;
+  const running=seasonMotionEnabled({enabled,reduceMotion,highContrast,active,focused,obscured:obscured&&!modal});
+  const particles=useMemo(()=>enabled&&height>0?buildParticles(season.id,seasonalMotion,width,height):null,[enabled,width,height,season.id,seasonalMotion]);
   // Colour and play state are applied outside the keyframes, so dark/light switches only recolour the pieces and the
   // animations keep running instead of being rebuilt.
   const dark=themeName==="midnight-indigo";

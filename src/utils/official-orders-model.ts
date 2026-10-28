@@ -2,7 +2,9 @@ export const officialOrdersUrl = "https://jkgad.nic.in/En/OrderCirculer.aspx";
 export const knownHolidayOrders = ["O44738", "O45600", "O45638"];
 export type OfficialOrder = { id: string; title: string; reference: string; url: string; included: boolean };
 // Holiday orders only. Whole words, so a name like "Shabir" in an appointment order does not match "Shab".
+// Special closures (offices or schools shut for snow, rain or bad weather) count too, though they may not say "holiday".
 export function isHolidayOrderTitle(title: string) {
+  if (/\b(closure|closed|shut|suspension of work)\b/i.test(title) && /\b(offices?|schools?|educational|institutions?|weather|snow\w*|rain\w*|flood\w*|cold)\b/i.test(title)) return true;
   return /\b(holidays?|shab[- ]?e[- ]?\w+|shab-i-\w+|urs|eids?|eid-ul-\w+|mela|navratri|diwali|dussehra|raksha\s+bandhan|nauroz|navroz|janmashtami|janam\s+ashtami|yatra)\b/i.test(title);
 }
 function decode(text: string) { return text.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16))).replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, " "); }

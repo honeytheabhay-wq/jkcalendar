@@ -135,8 +135,8 @@ async function main() {
   const official=parseOfficialOrders(html);assert.equal(official.checkedCount,3);assert.equal(official.orders.length,2);assert.equal(official.orders[0].included,true);assert.equal(official.orders[1].included,false);assert.throws(()=>parseOfficialOrders('<html>Error</html>'));
   const post=new URLSearchParams(largerPageRequest(html));assert.equal(post.get('__VIEWSTATE'),'a&b');assert.equal(post.get('ctl00$conPage$ddlPageSize'),'100');
   {const {isHolidayOrderTitle}=load('src/utils/official-orders-model.ts');
-   for(const t of ['Postponement of provincial holiday on account of Urs Sheikh Noor-Ud-Din Sahib','Preponement of Local Holiday on account of Mela Pat','Holiday on account of Shab-e-Barat','Eid-ul-Fitr holiday'])assert(isHolidayOrderTitle(t),t);
-   for(const t of ['Compassionate appointment of Mr Shabir Ahmad S/o Late Abdul Aziz','Transfer of Mr Eidris Khan','Promotion of officers'])assert(!isHolidayOrderTitle(t),t);}
+   for(const t of ['Postponement of provincial holiday on account of Urs Sheikh Noor-Ud-Din Sahib','Preponement of Local Holiday on account of Mela Pat','Holiday on account of Shab-e-Barat','Eid-ul-Fitr holiday','Closure of Government Offices due to heavy snowfall','Schools to remain closed due to inclement weather'])assert(isHolidayOrderTitle(t),t);
+   for(const t of ['Compassionate appointment of Mr Shabir Ahmad S/o Late Abdul Aziz','Transfer of Mr Eidris Khan','Promotion of officers','Closure of tender for supply of furniture'])assert(!isHolidayOrderTitle(t),t);}
   const {widgetData,widgetTimeline}=load('src/utils/widget-data.ts');
   const w=widgetData([{id:'w',title:'Review',date:'2026-10-26',time:'14:00'}],reference);assert.equal(w.holiday,'Accession Day');assert.equal(w.eventTitle,'Review');
   assert.match(w.hijri,/AH$/);assert.match(w.pandit,/ 5102$/);assert.equal(w.hindi,'Vikram Samvat 2083');

@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { router, Stack } from "expo-router";
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Alert, Pressable, ScrollView, Share, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
@@ -14,6 +14,7 @@ import { holidayDateAppearance, todayDateColors, radii, shadows, spacing, darkBa
 import { fromDateKey, monthLabel, toDateKey } from "@/utils/dates";
 import { useEvents } from "@/utils/events";
 import { setPreference } from "@/utils/preferences";
+import { holidayText } from "@/utils/holiday-share";
 import { switchThemeWithFade } from "@/components/theme-fade";
 import { AppLogo } from "@/components/app-logo";
 import { holidayYearLoaded, nextHoliday } from "@/utils/holiday-info";
@@ -156,6 +157,7 @@ export function Home() {
       {countdown ? <Pressable accessibilityRole="button" accessibilityLabel={countdownLabel} onPress={() => { const date = fromDateKey(countdown.holiday.date); selectDate(date); setCalendarView("monthly"); setDetailsDate(new Date(date)); }} style={({ pressed }) => [styles.countdown, pressed && styles.buttonPressed]}>
         <Text style={styles.countdownDays}>{countdown.remaining === 0 ? "Today" : countdown.remaining === 1 ? "Tomorrow" : `${countdown.remaining} days`}</Text>
         <View style={{ flex: 1 }}><Text numberOfLines={1} style={styles.countdownName}>{countdown.holiday.name}</Text><Text numberOfLines={1} style={styles.countdownWhen}>{fromDateKey(countdown.holiday.date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })} · {countdown.holiday.scope}{countdown.holiday.subjectToMoon ? " · moon sighting" : ""}</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Share ${countdown.holiday.name}`} hitSlop={8} onPress={() => { void Share.share({ message: holidayText(countdown.holiday) }).catch(() => {}); }} style={styles.countdownShare}><Text style={styles.countdownShareText}>Share</Text></Pressable>
       </Pressable> : null}
       {coloursOpen ? <View style={styles.themePanel}><ThemePicker /></View> : null}
       {unseen.length ? <Pressable accessibilityRole="button" onPress={() => router.push("/settings")} style={({ pressed }) => [styles.orderBanner, pressed && styles.buttonPressed]}>
@@ -223,6 +225,8 @@ function createStyles(colors: ThemeColors, narrow: boolean) {
     toolbar: { width:"100%", maxWidth:620, flexDirection:"row", flexWrap:"wrap", alignItems:"center", justifyContent:"space-between", gap:4, paddingHorizontal:6, borderRadius:radii.full, backgroundColor:colors.surface, boxShadow:`0 4px 14px ${colors.primary}22` },
     countdown: { width:"100%", maxWidth:620, flexDirection:"row", alignItems:"center", gap:12, paddingVertical:10, paddingHorizontal:14, borderRadius:18, backgroundColor:colors.surface },
     countdownDays: { minWidth:72, textAlign:"center", paddingVertical:6, paddingHorizontal:10, borderRadius:radii.full, overflow:"hidden", backgroundColor:colors.holiday, color:colors.onPrimary, fontSize:13, fontWeight:"800" },
+    countdownShare: { minHeight: 36, justifyContent: "center", paddingHorizontal: 12, borderRadius: radii.full, backgroundColor: colors.primarySoft },
+    countdownShareText: { color: colors.primaryDark, fontSize: 12, fontWeight: "700" },
     countdownName: { color:colors.ink, fontSize:15, fontWeight:"800" },
     countdownWhen: { color:colors.muted, fontSize:12 },
     utilities: { flexDirection:"row", gap:5, marginLeft:"auto" },

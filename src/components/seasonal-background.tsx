@@ -86,7 +86,8 @@ export function SeasonalBackground({modal=false}:{modal?:boolean}) {
         const progress=step/12,{dx,dy,rotate,scale,life}=frame(p,progress,width,height);
         const x=p.x/100+(dx+p.width/2)/Math.max(width,1),y=(falling?0:p.y/100)+(dy+p.height/2)/height;
         // Faded towards the centre to keep text readable, but snow, rain and motes keep a minimum so they stay visible.
-        animationName[`${progress*100}%`]={opacity:p.opacity*life*Math.max(seasonStrengthAt(x,y),p.floor),transform:[{translateY:dy},{translateX:dx},{rotate:`${rotate}deg`},{scale}]};
+        // Angles are rounded: a tiny value like 1e-14 would print as "1e-14deg", which Reanimated rejects.
+        animationName[`${progress*100}%`]={opacity:p.opacity*life*Math.max(seasonStrengthAt(x,y),p.floor),transform:[{translateY:dy},{translateX:dx},{rotate:`${(Math.round(rotate*10)/10).toFixed(1)}deg`},{scale}]};
       }
       return {p,index,style:{position:"absolute" as const,left:`${p.x}%` as const,top:falling?0:height*p.y/100,width:p.width,height:p.height,animationName,animationDuration:p.duration,animationDelay:-p.phase*p.duration,animationIterationCount:"infinite" as const,animationTimingFunction:"linear" as const}};
     }):null,[enabled,width,height,season.id,seasonalMotion,wandStyle]);

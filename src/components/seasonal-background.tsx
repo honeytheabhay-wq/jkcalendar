@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppState, Image, StyleSheet, View } from "react-native";
 import Animated, { type CSSAnimationKeyframes } from "react-native-reanimated";
 import { useCalendarTheme, useSeason } from "@/theme";
+import { usePreferences } from "@/utils/preferences";
 import { seasonalParticles, seasonStrengthAt, seasonMotionEnabled } from "@/utils/season-effects";
 import { useSeasonOverlayOpen } from "@/utils/season-motion-state";
 
@@ -93,14 +94,14 @@ function computeParticles(id:Parameters<typeof seasonalParticles>[0],level:Param
 
 export function SeasonalBackground({modal=false}:{modal?:boolean}) {
   const {themeName,reduceMotion,highContrast}=useCalendarTheme(),{season}=useSeason();
-  // One gentle level for everyone: Subtle. Reduce motion and high contrast still turn the effects off.
-  const seasonalMotion="subtle";
+  // One gentle level (Subtle), or off with the Settings switch. Reduce motion and high contrast also turn it off.
+  const seasonalMotion="subtle", animationOn=usePreferences().seasonalMotion!=="off";
   const obscured=useSeasonOverlayOpen();
   const [size,setSize]=useState({width:0,height:0}),[active,setActive]=useState(AppState.currentState==="active"),[focused,setFocused]=useState(false);
   const {width,height}=size;
   useEffect(()=>{const sub=AppState.addEventListener("change",state=>setActive(state==="active"));return()=>sub.remove();},[]);
   useFocusEffect(useCallback(()=>{setFocused(true);return()=>setFocused(false);},[]));
-  const enabled=!reduceMotion&&!highContrast;
+  const enabled=animationOn&&!reduceMotion&&!highContrast;
   const running=seasonMotionEnabled({enabled,reduceMotion,highContrast,active,focused,obscured:obscured&&!modal});
   const particles=useMemo(()=>enabled&&height>0?buildParticles(season.id,seasonalMotion,width,height):null,[enabled,width,height,season.id,seasonalMotion]);
   // Colour and play state are applied outside the keyframes, so dark/light switches only recolour the pieces and the

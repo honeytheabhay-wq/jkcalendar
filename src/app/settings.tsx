@@ -54,7 +54,8 @@ export default function SettingsRoute() {
       {heading("Regional feel")}
       {toggle("Automatic seasonal colours",preferences.autoSeasonColours,value=>save(()=>setPreference("autoSeasonColours",value)))}
       {note("Season colours follow the month you view. Choose a manual colour under Colours whenever you prefer.")}
-      {note("Gentle seasonal effects cover the whole page; the centre stays softer. Reduce motion or high contrast (below) turns them off.")}
+      {toggle("Seasonal animation",preferences.seasonalMotion!=="off",value=>save(()=>setPreference("seasonalMotion",value?"subtle":"off")))}
+      {note("Falling leaves, snow, rain and other gentle seasonal effects. Turn off to keep the screen still.")}
       <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Extra date labels</Text>
       {choice(labelLanguages,preferences.labelLanguage,value=>save(()=>setPreference("labelLanguage",value)))}
       {note("English headings stay visible. Optional Kashmiri or Dogri month and full-date labels work offline.")}

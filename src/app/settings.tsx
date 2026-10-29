@@ -21,6 +21,7 @@ const lunarDateOptions = [{value:"both",label:"Hijri + Kashmiri Pandit"},{value:
 
 export default function SettingsRoute() {
   const { colors:c }=useCalendarTheme(), preferences=usePreferences(), reminders=useReminderStatus(), orders=useOrderStatus();
+  const [creatorOpen,setCreatorOpen]=useState(false);
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(""),[backupText,setBackupText]=useState("");
   // Only the first section renders with the slide-in. The rest are added one at a time after it finishes, ~90 ms
   // apart, so no single frame has to build and draw the whole long page.
@@ -40,13 +41,17 @@ export default function SettingsRoute() {
   const snapshot=stage>=5?widgetData(events,new Date(),c,preferences.hijriOffset):null;
   async function run(task:()=>Promise<unknown>) { if(busy)return;setBusy(true);setMessage("");try{const result=await task();if(typeof result==="string")setMessage(result);}catch(e){setMessage(e instanceof Error?e.message:"Could not finish. Please try again.");}finally{setBusy(false);} }
   // Section titles: an emoji in a tinted circle, the title in a serif face, and a short accent line beneath.
-  const icons:Record<string,string>={"Regional feel":"🍁","Accessibility":"👁️","Reminders":"🔔","Back up your events":"💾","Official holidays":"📜","Home-screen widget":"🧩"};
+  // Each section has its own colour: the icon circle, the accent line and a soft tint along the card's top edge.
+  const hues:Record<string,string>={"Regional feel":"#C2622D","Accessibility":"#2F7FC1","Reminders":"#7B4BC4","Back up your events":"#2E9E6E","Official holidays":"#0E8C8C","Home-screen widget":"#C53A8E","About the creator":"#C99A06"};
+  const hueOf=(text:string)=>hues[text]??c.primary;
+  const sectionFor=(text:string)=>({...section,borderTopWidth:4,borderTopColor:hueOf(text),experimental_backgroundImage:`linear-gradient(180deg, ${hueOf(text)}14 0%, ${c.surface} 120px)`});
+  const icons:Record<string,string>={"Regional feel":"🍁","Accessibility":"👁️","Reminders":"🔔","Back up your events":"💾","Official holidays":"📜","Home-screen widget":"🧩","About the creator":"👤"};
   const heading=(text:string)=><View style={{gap:8,marginBottom:2}}><View style={{flexDirection:"row",alignItems:"center",gap:10}}>
-    <View style={{width:36,height:36,borderRadius:18,alignItems:"center",justifyContent:"center",backgroundColor:c.primarySoft}}><Text allowFontScaling={false} style={{fontSize:17}}>{icons[text]??"•"}</Text></View>
+    <View style={{width:36,height:36,borderRadius:18,alignItems:"center",justifyContent:"center",backgroundColor:`${hueOf(text)}22`}}><Text allowFontScaling={false} style={{fontSize:17}}>{icons[text]??"•"}</Text></View>
     <Text accessibilityRole="header" style={{color:c.ink,fontSize:20,fontWeight:"700",fontFamily:"serif"}}>{text}</Text></View>
-    <View style={{width:40,height:3,borderRadius:2,backgroundColor:c.primary,marginLeft:46}} /></View>;
+    <View style={{width:40,height:3,borderRadius:2,backgroundColor:hueOf(text),marginLeft:46}} /></View>;
   const note=(text:string)=><Text selectable style={{color:c.muted,fontSize:12.5,lineHeight:19}}>{text}</Text>;
-  const label=(text:string)=><Text style={{color:c.primaryDark,fontSize:12,fontWeight:"800",letterSpacing:0.8,textTransform:"uppercase",marginTop:4}}>{text}</Text>;
+  const label=(text:string)=><Text style={{color:c.ink,fontSize:12,fontWeight:"800",letterSpacing:0.8,textTransform:"uppercase",marginTop:4}}>{text}</Text>;
   const button=(text:string,task:()=>Promise<unknown>)=><Pressable accessibilityRole="button" disabled={busy} onPress={()=>void run(task)} style={{minHeight:48,justifyContent:"center",alignItems:"center",paddingHorizontal:14,paddingVertical:10,borderRadius:24,backgroundColor:c.primarySoft,opacity:busy?.6:1}}><Text style={{color:c.primaryDark,fontSize:13,fontWeight:"700"}}>{text}</Text></Pressable>;
   const section={padding:18,gap:12,borderRadius:24,backgroundColor:c.surface,borderWidth:1,borderColor:`${c.primary}1F`,boxShadow:`0 6px 18px ${c.primary}14`} as const;
   // Plain React Native controls: each native Compose Picker/Switch host took tens of milliseconds to create, which
@@ -56,7 +61,7 @@ export default function SettingsRoute() {
   const toggle=(label:string,value:boolean,onChange:(value:boolean)=>void)=><Pressable accessibilityRole="switch" accessibilityState={{checked:value}} onPress={()=>onChange(!value)} style={{minHeight:48,flexDirection:"row",alignItems:"center",gap:12}}><Text style={{flex:1,color:c.ink,fontSize:15}}>{label}</Text><View style={{width:48,height:28,borderRadius:14,padding:3,backgroundColor:value?c.primary:c.line,alignItems:value?"flex-end":"flex-start"}}><View style={{width:22,height:22,borderRadius:11,backgroundColor:value?c.onPrimary:c.surface}} /></View></Pressable>;
   return <SeasonalScreen><ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{padding:18,paddingBottom:48,gap:16,backgroundColor:c.background}}>
     <Stack.Screen options={{title:"Settings"}} />
-    <View style={section}>
+    <View style={sectionFor("Regional feel")}>
       {heading("Regional feel")}
       {toggle("Automatic seasonal colours",preferences.autoSeasonColours,value=>save(()=>setPreference("autoSeasonColours",value)))}
       {note("Season colours follow the month you view. Choose a manual colour under Colours whenever you prefer.")}
@@ -72,7 +77,7 @@ export default function SettingsRoute() {
       <View style={{flexDirection:"row",flexWrap:"wrap",gap:8}}>{hijriOffsets.map(offset=><Pressable key={offset} accessibilityRole="button" accessibilityLabel={`Hijri adjustment ${offset} days`} accessibilityState={{selected:preferences.hijriOffset===offset}} onPress={()=>{try{setPreference("hijriOffset",offset);}catch{setMessage("Could not save this setting.");}}} style={{minHeight:44,minWidth:52,paddingHorizontal:14,alignItems:"center",justifyContent:"center",borderRadius:22,backgroundColor:preferences.hijriOffset===offset?c.primary:c.primarySoft}}><Text style={{color:preferences.hijriOffset===offset?c.onPrimary:c.primaryDark,fontSize:13}}>{offset>0?`+${offset}`:offset}</Text></Pressable>)}</View>
       {note("Hijri dates are calculated and can differ by a day from local moon sighting; adjust if your mosque's date differs. Kashmiri Pandit and Hindi (Vikram Samvat) tithis are calculated for sunrise in Srinagar and are approximate near tithi changes.")}
     </View>
-    {stage>=1?<View style={section}>
+    {stage>=1?<View style={sectionFor("Accessibility")}>
       {heading("Accessibility")}
       {note("System text sizes, reduced motion and contrast settings are respected. These controls add your own preferences.")}
       {label("Text size")}
@@ -81,7 +86,7 @@ export default function SettingsRoute() {
       {toggle("Reduce motion",preferences.reduceMotion,value=>save(()=>setPreference("reduceMotion",value)))}
       {toggle("Reduce transparency",preferences.reduceTransparency,value=>save(()=>setPreference("reduceTransparency",value)))}
     </View>:null}
-    {stage>=2?<View style={section}>
+    {stage>=2?<View style={sectionFor("Reminders")}>
       {heading("Reminders")}
       {label("Holiday reminders")}
       {choice(holidayReminderScopes,preferences.holidayReminders,value=>void run(async()=>{setPreference("holidayReminders",value);if(value!=="off"&&!await requestReminderPermission())return "Allow notifications in phone settings to get holiday reminders.";await syncReminders(getEvents());}))}
@@ -98,14 +103,14 @@ export default function SettingsRoute() {
       {button("Open phone notification settings",()=>Linking.openSettings())}
       {note("The next 40 future alerts are queued locally and refreshed when you use the app. Android battery restrictions can delay alerts. Try a test with the app closed and after restarting your phone.")}
     </View>:null}
-    {stage>=3?<View style={section}>
+    {stage>=3?<View style={sectionFor("Back up your events")}>
       {heading("Back up your events")}
       {note(`${events.length} event${events.length===1?"":"s"} saved on this phone only. Export a backup and keep it in WhatsApp, Drive or email; paste it here on a new phone to restore.`)}
       {button("Export events",async()=>{await Share.share({title:"J&K Calendar backup",message:exportEvents()});})}
       <TextInput accessibilityLabel="Paste a backup to import" value={backupText} onChangeText={setBackupText} placeholder="Paste a backup here to import" placeholderTextColor={c.muted} multiline style={{minHeight:80,maxHeight:160,padding:12,borderRadius:14,borderWidth:1,borderColor:c.line,backgroundColor:c.background,color:c.ink,fontSize:12,textAlignVertical:"top"}} />
       {backupText.trim()?button("Import events",async()=>{const result=await importEvents(backupText);setBackupText("");return `Imported: ${result.added} new, ${result.updated} updated${result.skipped?`, ${result.skipped} skipped (invalid)`:""}. Events already on this phone that were newer were kept.`;}):null}
     </View>:null}
-    {stage>=4?<View style={section}>
+    {stage>=4?<View style={sectionFor("Official holidays")}>
       {heading("Official holidays")}
       {note("2026 schedule + Mela Pat and Urs Sheikh Noor-ud-Din Sahib amendments are included. Every holiday shows its scope and source. Moon-dependent dates remain labelled tentative.")}
       {toggle("Check official orders daily",preferences.autoCheckOrders,value=>save(()=>setPreference("autoCheckOrders",value)))}
@@ -117,22 +122,30 @@ export default function SettingsRoute() {
       {button("Open full official archive",()=>Linking.openURL(officialOrdersUrl))}
       {note("Checks read the GAD website’s recent order listing. Newly detected orders require review; the app does not guess amended dates from document titles.")}
     </View>:null}
-    {snapshot?<View style={section}>
+    {snapshot?<View style={sectionFor("Home-screen widget")}>
       {heading("Home-screen widget")}
       <View style={{padding:16,gap:5,borderRadius:18,backgroundColor:c.background}}><Text style={{color:c.primaryDark,fontSize:11,fontWeight:"800"}}>J&K CALENDAR</Text><Text style={{color:c.ink,fontSize:24,fontWeight:"800"}}>{snapshot.dateLabel}</Text>{note(`${snapshot.hijri}\n${snapshot.pandit}\n${snapshot.hindi}`)}<Text style={{color:c.ink,fontSize:14,fontWeight:"700"}}>{snapshot.holiday}</Text>{note(snapshot.holidayNote)}<Text style={{color:c.ink,fontSize:15}}>{snapshot.eventTitle}</Text>{note(snapshot.eventWhen)}<Text style={{color:c.primaryDark,fontSize:13}}>＋ Add event</Text></View>
       {button("Refresh home-screen widget",()=>syncWidgets(getEvents(),c))}
       {note("After installing the native app, long-press your home screen and add J&K Calendar from Widgets. Tap its date to open the app, or + to add an event. Widgets show your next event title.")}
       {note("Android refreshes are requested every 30 minutes and when events change. iPhone uses a timeline of up to 14 days; open the app periodically to refill it. System widget refresh timing can vary. Widgets are unavailable in Expo Go.")}
     </View>:null}
-    {/* About the creator */}
-    <View style={[section,{alignItems:"center",gap:10}]}>
-      <Image source={require("../../assets/creator.jpg")} accessibilityLabel="Photo of Abhay Singh" style={{width:96,height:96,borderRadius:48,borderWidth:3,borderColor:c.primarySoft}} />
-      <Text style={{color:c.muted,fontSize:11,fontWeight:"800",letterSpacing:1.2}}>MADE BY</Text>
-      <Text style={{color:c.ink,fontSize:22,fontWeight:"700",fontFamily:"serif"}}>Abhay Singh</Text>
-      <Text style={{color:c.muted,fontSize:13,textAlign:"center"}}>Made with love in Jammu & Kashmir</Text>
-      <View style={{flexDirection:"row",flexWrap:"wrap",justifyContent:"center",gap:8,marginTop:4}}>
-        {([["📸 Instagram","https://instagram.com/aabhay_singh"],["✉️ Email","mailto:honeytheabhay@gmail.com"],["✈️ Telegram","https://t.me/JKSSBjmu"]] as const).map(([text,url])=><Pressable key={url} accessibilityRole="link" onPress={()=>void run(()=>Linking.openURL(url))} style={({pressed})=>({minHeight:44,paddingHorizontal:16,justifyContent:"center",borderRadius:22,backgroundColor:c.primarySoft,opacity:pressed?.7:1})}><Text style={{color:c.primaryDark,fontSize:13,fontWeight:"700"}}>{text}</Text></Pressable>)}
-      </View>
+    {/* About the creator: folded into a dropdown; tap to open. */}
+    <View style={[sectionFor("About the creator"),{gap:0}]}>
+      <Pressable accessibilityRole="button" accessibilityState={{expanded:creatorOpen}} onPress={()=>setCreatorOpen(open=>!open)} style={{flexDirection:"row",alignItems:"center",gap:12,minHeight:48}}>
+        <Image source={require("../../assets/creator.jpg")} style={{width:40,height:40,borderRadius:20}} />
+        <View style={{flex:1}}><Text style={{color:c.ink,fontSize:18,fontWeight:"700",fontFamily:"serif"}}>About the creator</Text><Text style={{color:c.muted,fontSize:12}}>Abhay Singh</Text></View>
+        <Text allowFontScaling={false} style={{color:hueOf("About the creator"),fontSize:20,fontWeight:"800"}}>{creatorOpen?"⌃":"⌄"}</Text>
+      </Pressable>
+      {creatorOpen?<View style={{alignItems:"center",gap:10,marginTop:14}}>
+        <Image source={require("../../assets/creator.jpg")} accessibilityLabel="Photo of Abhay Singh" style={{width:96,height:96,borderRadius:48,borderWidth:3,borderColor:`${hueOf("About the creator")}66`}} />
+        <Text style={{color:c.muted,fontSize:11,fontWeight:"800",letterSpacing:1.2}}>MADE BY</Text>
+        <Text style={{color:c.ink,fontSize:22,fontWeight:"700",fontFamily:"serif"}}>Abhay Singh</Text>
+        <Text style={{color:c.muted,fontSize:13,textAlign:"center"}}>Made with love in Jammu & Kashmir</Text>
+        <View style={{flexDirection:"row",flexWrap:"wrap",justifyContent:"center",gap:8,marginTop:4}}>
+          {([["📸 Instagram","https://instagram.com/aabhay_singh","#C53A8E"],["✉️ Email","mailto:honeytheabhay@gmail.com","#C2622D"],["✈️ Telegram","https://t.me/JKSSBjmu","#2F7FC1"]] as const).map(([text,url,hue])=><Pressable key={url} accessibilityRole="link" onPress={()=>void run(()=>Linking.openURL(url))} style={({pressed})=>({minHeight:44,paddingHorizontal:16,justifyContent:"center",borderRadius:22,backgroundColor:`${hue}1F`,opacity:pressed?.7:1})}><Text style={{color:hue,fontSize:13,fontWeight:"700"}}>{text}</Text></Pressable>)}
+        </View>
+        <Pressable accessibilityRole="link" onPress={()=>void run(()=>Linking.openURL("https://jkexams.com/aboutme"))} style={({pressed})=>({minHeight:48,alignSelf:"stretch",alignItems:"center",justifyContent:"center",marginTop:4,borderRadius:24,backgroundColor:hueOf("About the creator"),opacity:pressed?.8:1})}><Text style={{color:"#FFFFFF",fontSize:14,fontWeight:"800"}}>Know more about the creator ↗</Text></Pressable>
+      </View>:null}
     </View>
     {message?<Text accessibilityLiveRegion="polite" selectable style={{color:c.primaryDark,fontSize:13,lineHeight:20}}>{message}</Text>:null}
   </ScrollView></SeasonalScreen>;

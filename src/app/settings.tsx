@@ -1,6 +1,6 @@
 import { Stack, useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
-import { Linking, Pressable, ScrollView, Share, TextInput, View } from "react-native";
+import { Image, Linking, Pressable, ScrollView, Share, TextInput, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { useCalendarTheme } from "@/theme";
 import { exportEvents, getEvents, importEvents, useEvents } from "@/utils/events";
@@ -39,10 +39,16 @@ export default function SettingsRoute() {
   useEffect(()=>{markOrdersSeen();},[]);
   const snapshot=stage>=5?widgetData(events,new Date(),c,preferences.hijriOffset):null;
   async function run(task:()=>Promise<unknown>) { if(busy)return;setBusy(true);setMessage("");try{const result=await task();if(typeof result==="string")setMessage(result);}catch(e){setMessage(e instanceof Error?e.message:"Could not finish. Please try again.");}finally{setBusy(false);} }
-  const heading=(text:string)=><Text accessibilityRole="header" style={{color:c.ink,fontSize:18,fontWeight:"800"}}>{text}</Text>;
-  const note=(text:string)=><Text selectable style={{color:c.muted,fontSize:12,lineHeight:18}}>{text}</Text>;
+  // Section titles: an emoji in a tinted circle, the title in a serif face, and a short accent line beneath.
+  const icons:Record<string,string>={"Regional feel":"🍁","Accessibility":"👁️","Reminders":"🔔","Back up your events":"💾","Official holidays":"📜","Home-screen widget":"🧩"};
+  const heading=(text:string)=><View style={{gap:8,marginBottom:2}}><View style={{flexDirection:"row",alignItems:"center",gap:10}}>
+    <View style={{width:36,height:36,borderRadius:18,alignItems:"center",justifyContent:"center",backgroundColor:c.primarySoft}}><Text allowFontScaling={false} style={{fontSize:17}}>{icons[text]??"•"}</Text></View>
+    <Text accessibilityRole="header" style={{color:c.ink,fontSize:20,fontWeight:"700",fontFamily:"serif"}}>{text}</Text></View>
+    <View style={{width:40,height:3,borderRadius:2,backgroundColor:c.primary,marginLeft:46}} /></View>;
+  const note=(text:string)=><Text selectable style={{color:c.muted,fontSize:12.5,lineHeight:19}}>{text}</Text>;
+  const label=(text:string)=><Text style={{color:c.primaryDark,fontSize:12,fontWeight:"800",letterSpacing:0.8,textTransform:"uppercase",marginTop:4}}>{text}</Text>;
   const button=(text:string,task:()=>Promise<unknown>)=><Pressable accessibilityRole="button" disabled={busy} onPress={()=>void run(task)} style={{minHeight:48,justifyContent:"center",alignItems:"center",paddingHorizontal:14,paddingVertical:10,borderRadius:24,backgroundColor:c.primarySoft,opacity:busy?.6:1}}><Text style={{color:c.primaryDark,fontSize:13,fontWeight:"700"}}>{text}</Text></Pressable>;
-  const section={padding:18,gap:12,borderRadius:22,backgroundColor:c.surface} as const;
+  const section={padding:18,gap:12,borderRadius:24,backgroundColor:c.surface,borderWidth:1,borderColor:`${c.primary}1F`,boxShadow:`0 6px 18px ${c.primary}14`} as const;
   // Plain React Native controls: each native Compose Picker/Switch host took tens of milliseconds to create, which
   // made Settings open with a ~0.7 s freeze.
   const save=(task:()=>void)=>{try{task();}catch{setMessage("Could not save this setting.");}};
@@ -56,20 +62,20 @@ export default function SettingsRoute() {
       {note("Season colours follow the month you view. Choose a manual colour under Colours whenever you prefer.")}
       {toggle("Seasonal animation",preferences.seasonalMotion!=="off",value=>save(()=>setPreference("seasonalMotion",value?"subtle":"off")))}
       {note("Falling leaves, snow, rain and other gentle seasonal effects. Turn off to keep the screen still.")}
-      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Extra date labels</Text>
+      {label("Extra date labels")}
       {choice(labelLanguages,preferences.labelLanguage,value=>save(()=>setPreference("labelLanguage",value)))}
       {note("English headings stay visible. Optional Kashmiri or Dogri month and full-date labels work offline.")}
-      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Lunar dates under each date</Text>
+      {label("Lunar dates under each date")}
       {choice(lunarDateOptions,preferences.lunarDates,value=>save(()=>setPreference("lunarDates",value)))}
       {note(`Today: ${hijriLabel(hijriDate(new Date(),preferences.hijriOffset))} · ${panchangLabel(kashmiriPanchang(new Date()))} · ${hindiLabel(kashmiriPanchang(new Date()))}. On the calendar, the Hijri day is on the left and the tithi on the right (Kashmiri Pandit: S7 = Shukla Saptami, K3 = Krishna Tritiya, Pur = Purnima, Ama = Amavasya; Hindi: शु7, कृ3, पू, अमा). Tap a date for full details.`)}
-      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Hijri date adjustment</Text>
+      {label("Hijri date adjustment")}
       <View style={{flexDirection:"row",flexWrap:"wrap",gap:8}}>{hijriOffsets.map(offset=><Pressable key={offset} accessibilityRole="button" accessibilityLabel={`Hijri adjustment ${offset} days`} accessibilityState={{selected:preferences.hijriOffset===offset}} onPress={()=>{try{setPreference("hijriOffset",offset);}catch{setMessage("Could not save this setting.");}}} style={{minHeight:44,minWidth:52,paddingHorizontal:14,alignItems:"center",justifyContent:"center",borderRadius:22,backgroundColor:preferences.hijriOffset===offset?c.primary:c.primarySoft}}><Text style={{color:preferences.hijriOffset===offset?c.onPrimary:c.primaryDark,fontSize:13}}>{offset>0?`+${offset}`:offset}</Text></Pressable>)}</View>
       {note("Hijri dates are calculated and can differ by a day from local moon sighting; adjust if your mosque's date differs. Kashmiri Pandit and Hindi (Vikram Samvat) tithis are calculated for sunrise in Srinagar and are approximate near tithi changes.")}
     </View>
     {stage>=1?<View style={section}>
       {heading("Accessibility")}
       {note("System text sizes, reduced motion and contrast settings are respected. These controls add your own preferences.")}
-      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Text size</Text>
+      {label("Text size")}
       <View style={{flexDirection:"row",flexWrap:"wrap",gap:8}}>{(["standard","large","larger"] as const).map(size=><Pressable key={size} accessibilityRole="button" accessibilityState={{selected:preferences.textSize===size}} onPress={()=>{try{setPreference("textSize",size);}catch{setMessage("Could not save this setting. Try again.");}}} style={{minHeight:48,paddingHorizontal:16,justifyContent:"center",borderRadius:24,backgroundColor:preferences.textSize===size?c.primary:c.primarySoft}}><Text style={{color:preferences.textSize===size?c.onPrimary:c.primaryDark,fontSize:13}}>{size[0].toUpperCase()+size.slice(1)}</Text></Pressable>)}</View>
       {toggle("High contrast",preferences.highContrast,value=>save(()=>setPreference("highContrast",value)))}
       {toggle("Reduce motion",preferences.reduceMotion,value=>save(()=>setPreference("reduceMotion",value)))}
@@ -77,7 +83,7 @@ export default function SettingsRoute() {
     </View>:null}
     {stage>=2?<View style={section}>
       {heading("Reminders")}
-      <Text style={{color:c.ink,fontSize:13,fontWeight:"700"}}>Holiday reminders</Text>
+      {label("Holiday reminders")}
       {choice(holidayReminderScopes,preferences.holidayReminders,value=>void run(async()=>{setPreference("holidayReminders",value);if(value!=="off"&&!await requestReminderPermission())return "Allow notifications in phone settings to get holiday reminders.";await syncReminders(getEvents());}))}
       {preferences.holidayReminders!=="off"?<View style={{flexDirection:"row",flexWrap:"wrap",gap:8}}>{holidayReminderHours.map(hour=><Pressable key={hour} accessibilityRole="button" accessibilityState={{selected:preferences.holidayReminderHour===hour}} onPress={()=>void run(async()=>{setPreference("holidayReminderHour",hour);await syncReminders(getEvents());})} style={{minHeight:44,paddingHorizontal:14,justifyContent:"center",borderRadius:22,backgroundColor:preferences.holidayReminderHour===hour?c.primary:c.primarySoft}}><Text style={{color:preferences.holidayReminderHour===hour?c.onPrimary:c.primaryDark,fontSize:13}}>{holidayReminderPreview(hour)}</Text></Pressable>)}</View>:null}
       {toggle("Morning note with today's dates",preferences.dailyDates,value=>void run(async()=>{setPreference("dailyDates",value);if(value&&!await requestReminderPermission())return "Allow notifications in phone settings to get the morning note.";await syncReminders(getEvents());}))}
@@ -118,6 +124,16 @@ export default function SettingsRoute() {
       {note("After installing the native app, long-press your home screen and add J&K Calendar from Widgets. Tap its date to open the app, or + to add an event. Widgets show your next event title.")}
       {note("Android refreshes are requested every 30 minutes and when events change. iPhone uses a timeline of up to 14 days; open the app periodically to refill it. System widget refresh timing can vary. Widgets are unavailable in Expo Go.")}
     </View>:null}
+    {/* About the creator */}
+    <View style={[section,{alignItems:"center",gap:10}]}>
+      <Image source={require("../../assets/creator.jpg")} accessibilityLabel="Photo of Abhay Singh" style={{width:96,height:96,borderRadius:48,borderWidth:3,borderColor:c.primarySoft}} />
+      <Text style={{color:c.muted,fontSize:11,fontWeight:"800",letterSpacing:1.2}}>MADE BY</Text>
+      <Text style={{color:c.ink,fontSize:22,fontWeight:"700",fontFamily:"serif"}}>Abhay Singh</Text>
+      <Text style={{color:c.muted,fontSize:13,textAlign:"center"}}>Made with love in Jammu & Kashmir</Text>
+      <View style={{flexDirection:"row",flexWrap:"wrap",justifyContent:"center",gap:8,marginTop:4}}>
+        {([["📸 Instagram","https://instagram.com/aabhay_singh"],["✉️ Email","mailto:honeytheabhay@gmail.com"],["✈️ Telegram","https://t.me/JKSSBjmu"]] as const).map(([text,url])=><Pressable key={url} accessibilityRole="link" onPress={()=>void run(()=>Linking.openURL(url))} style={({pressed})=>({minHeight:44,paddingHorizontal:16,justifyContent:"center",borderRadius:22,backgroundColor:c.primarySoft,opacity:pressed?.7:1})}><Text style={{color:c.primaryDark,fontSize:13,fontWeight:"700"}}>{text}</Text></Pressable>)}
+      </View>
+    </View>
     {message?<Text accessibilityLiveRegion="polite" selectable style={{color:c.primaryDark,fontSize:13,lineHeight:20}}>{message}</Text>:null}
   </ScrollView></SeasonalScreen>;
 }
